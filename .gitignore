@@ -11,3 +11,4 @@ build/
 htmlcov/
 .env
 .env.*
+.uv-cache/
