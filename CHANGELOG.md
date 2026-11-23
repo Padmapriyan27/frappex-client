@@ -21,3 +21,5 @@ All notable changes are recorded here. The format follows
 - `get_value` returns `None`, not an empty mapping, when nothing matches.
 - An error reply containing an unpaired surrogate no longer crashes decoding.
 - An unsupported `verify` value raises `ConfigurationError`.
+- `exc_type` is read from Frappe 14's `exception` field when `exc_type` is
+  absent.

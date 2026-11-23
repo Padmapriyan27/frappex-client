@@ -177,11 +177,30 @@ def _traceback(payload: Mapping[str, Any]) -> str | None:
     return raw if isinstance(raw, str) and raw else None
 
 
+def _exception_type(payload: Mapping[str, Any]) -> str | None:
+    """Return the name of the server-side exception class, when reported.
+
+    Frappe 15 and later send it as ``exc_type``. Frappe 14 sends only
+    ``exception``, the last line of the traceback, such as
+    ``frappe.exceptions.MandatoryError: Title``, and only when the site
+    exposes tracebacks.
+    """
+    exc_type = payload.get("exc_type")
+    if isinstance(exc_type, str) and exc_type:
+        return exc_type
+    exception = payload.get("exception")
+    if isinstance(exception, str):
+        name = exception.split(":", 1)[0].strip().rsplit(".", 1)[-1]
+        if name.isidentifier():
+            return name
+    return None
+
+
 def _error(response: RawResponse) -> APIError:
     status = response.status_code
     loaded = _load_json(response.body)
     payload: Mapping[str, Any] = loaded if isinstance(loaded, Mapping) else {}
-    exc_type = payload.get("exc_type") if isinstance(payload.get("exc_type"), str) else None
+    exc_type = _exception_type(payload)
     messages = _server_messages(payload)
 
     summary = messages[0] if messages else payload.get("message")

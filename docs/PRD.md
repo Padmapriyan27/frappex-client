@@ -108,8 +108,8 @@ Each of S1–S10 has at least one automated test.
 ### 6.3 Quality
 
 - Python 3.10 to 3.14.
-- Frappe v15 and v16 on the `/api/resource` and `/api/method` routes, verified
-  by the integration suite. v14 is intended but not yet tested.
+- Frappe v14, v15 and v16 on the `/api/resource` and `/api/method` routes,
+  verified by the integration suite in CI.
 - `mypy --strict` and `ruff` clean; public names documented.
 - Unit tests run without a network. Integration tests run against a real
   site and touch only data they create.

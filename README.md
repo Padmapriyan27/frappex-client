@@ -23,8 +23,7 @@ endorsed by Frappe Technologies.
 - Fully type-annotated; one dependency (`httpx`)
 
 Requires Python 3.10+. Uses the `/api/resource` and `/api/method` routes.
-Tested against Frappe v15 and v16; v14 exposes the same routes but has not
-been tested yet.
+The integration suite runs in CI against Frappe v14, v15 and v16.
 
 ## Install
 
@@ -123,7 +122,8 @@ except FrappixError as error:  # everything frappix raises
 | `ConfigurationError` | An unsafe or malformed argument |
 
 `APIError` subclasses carry `status_code`, `exc_type`, `server_messages` and
-`traceback`. The server traceback is deliberately left out of `str(error)`.
+`traceback`. Frappe 14 does not always report the exception type, so
+`exc_type` can be `None` there; rely on the exception class instead. The server traceback is deliberately left out of `str(error)`.
 
 ## Security behaviour
 
