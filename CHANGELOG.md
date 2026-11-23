@@ -10,6 +10,8 @@ All notable changes are recorded here. The format follows
 
 - `Client` and `AsyncClient` with document, method, file and pagination calls.
 - `TokenAuth`, `BearerAuth` and `PasswordAuth`.
+- Guest access: `auth` is optional, for `ping`, public files and
+  `allow_guest` methods.
 - Typed exception hierarchy and `RetryPolicy`.
 - Unit tests for both clients and an integration suite for a live site,
   verified against Frappe 15 and 16.

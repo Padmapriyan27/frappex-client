@@ -69,8 +69,19 @@ asyncio.run(main())
 | `TokenAuth(api_key, api_secret)` | Servers, scripts and jobs. Recommended. |
 | `BearerAuth(token)` | An OAuth 2 access token issued by the site. |
 | `PasswordAuth(username, password)` | A cookie session. Logs in on first use, logs out on close. |
+| *(omitted)* | Guest access. No credentials are sent. |
 
 Read credentials from the environment or a secret store, never from source code.
+
+Without `auth`, the client acts as a guest. That is enough for a health check,
+public files and methods the site whitelists with `allow_guest`:
+
+```python
+from frappix import Client
+
+with Client("https://erp.example.com") as client:
+    assert client.ping() == "pong"
+```
 
 ## Methods
 

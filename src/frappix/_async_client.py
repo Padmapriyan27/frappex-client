@@ -45,7 +45,10 @@ class AsyncClient(ClientCore):
         base_url: Root address of the site. Must be ``https://`` unless
             ``allow_insecure_http`` is set.
         auth: A :class:`~frappix.TokenAuth`, :class:`~frappix.BearerAuth` or
-            :class:`~frappix.PasswordAuth`.
+            :class:`~frappix.PasswordAuth`. Omit it for guest access: no
+            credentials are sent, so only what the site opens to guests
+            works, such as :meth:`ping`, public files and methods
+            whitelisted with ``allow_guest``.
         timeout: Seconds allowed per request, or an ``httpx.Timeout``.
         retry: Retry rules; defaults to :class:`~frappix.RetryPolicy`.
         verify: Path of a CA bundle or an ``ssl.SSLContext`` for sites with a
@@ -66,7 +69,7 @@ class AsyncClient(ClientCore):
     def __init__(
         self,
         base_url: str,
-        auth: Auth,
+        auth: Auth | None = None,
         *,
         timeout: float | httpx.Timeout = DEFAULT_TIMEOUT,
         retry: RetryPolicy | None = None,
