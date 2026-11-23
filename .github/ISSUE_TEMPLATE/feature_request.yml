@@ -1,0 +1,21 @@
+name: Feature request
+description: Suggest an addition or a change.
+labels: [enhancement]
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: What are you trying to do?
+      description: Describe the task, not only the solution you have in mind.
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposed interface
+      description: How you would like to call it.
+      render: python
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: What you do today instead

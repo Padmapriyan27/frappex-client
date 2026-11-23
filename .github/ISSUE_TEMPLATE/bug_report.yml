@@ -1,0 +1,52 @@
+name: Bug report
+description: Something in frappix does not work as documented.
+labels: [bug]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Do not report security problems here. See the security policy instead.
+        Remove API keys, passwords and personal data from anything you paste.
+  - type: input
+    id: frappix-version
+    attributes:
+      label: frappix version
+      placeholder: "0.1.0"
+    validations:
+      required: true
+  - type: input
+    id: frappe-version
+    attributes:
+      label: Frappe version
+      placeholder: "15.50.0"
+    validations:
+      required: true
+  - type: input
+    id: python-version
+    attributes:
+      label: Python version
+      placeholder: "3.12"
+    validations:
+      required: true
+  - type: dropdown
+    id: client
+    attributes:
+      label: Client
+      options: [Client (sync), AsyncClient, Both]
+    validations:
+      required: true
+  - type: textarea
+    id: example
+    attributes:
+      label: Minimal example
+      description: The smallest code that shows the problem.
+      render: python
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: What you expected, and what happened
+      description: Include the full exception text if there is one.
+    validations:
+      required: true

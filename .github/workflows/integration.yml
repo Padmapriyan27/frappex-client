@@ -1,0 +1,66 @@
+name: Integration
+
+# Runs the integration suite against a real, throwaway Frappe site for each
+# supported Frappe version.
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  schedule:
+    - cron: "53 2 * * 4" # weekly: catches changes on the Frappe release branches
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: integration-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  frappe:
+    name: frappe ${{ matrix.frappe }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - frappe: version-14
+            python: "3.10"
+          - frappe: version-15
+            python: "3.12"
+          - frappe: version-16
+            python: "3.14"
+    services:
+      mariadb:
+        image: mariadb:10.6@sha256:75079c0fb96894284d00d035bc4bef94234814f6f6c28b79877bc69d3285d760
+        env:
+          MARIADB_ROOT_PASSWORD: root
+        ports:
+          - 3306:3306
+        options: >-
+          --health-cmd="mariadb-admin ping -uroot -proot"
+          --health-interval=5s --health-timeout=3s --health-retries=20
+      redis:
+        image: redis:7-alpine@sha256:7f7d30b7fdd09467bac58198a1f166dd69789d348d4fe859cccb20e0cf287fbe
+        ports:
+          - 6379:6379
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
+        with:
+          python-version: ${{ matrix.python }}
+      - uses: astral-sh/setup-uv@37802adc94f370d6bfd71619e3f0bf239e1f3b78 # v7
+      - name: Start a Frappe site
+        env:
+          FRAPPE_BRANCH: ${{ matrix.frappe }}
+        run: scripts/ci/start_frappe_site.sh "$FRAPPE_BRANCH" "$RUNNER_TEMP/bench"
+      - name: Run the integration tests
+        run: uv run --locked pytest tests/integration -v
+      - name: Show the Frappe server log
+        if: failure()
+        run: tail -n 200 "$RUNNER_TEMP/bench/logs/serve.log" || true

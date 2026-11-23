@@ -5,6 +5,12 @@
 stages:
   - test
 
+# Static analysis (Semgrep) and secret detection. Findings are attached to
+# the pipeline as report artifacts.
+include:
+  - template: Security/SAST.gitlab-ci.yml
+  - template: Security/Secret-Detection.gitlab-ci.yml
+
 workflow:
   rules:
     - if: $CI_PIPELINE_SOURCE == "merge_request_event"
@@ -32,12 +38,19 @@ checks:
     - uv run ruff check .
     - uv run ruff format --check .
     - uv run mypy
-    - uv run pytest --junitxml=report.xml
+    - uv run pytest --cov --cov-report=term --junitxml=report.xml
     - uv build
+  coverage: '/^TOTAL.+?(\d+(?:\.\d+)?%)$/'
   artifacts:
     when: always
     reports:
       junit: report.xml
+
+lowest-dependencies:
+  stage: test
+  image: ghcr.io/astral-sh/uv:python3.10-bookworm-slim
+  script:
+    - uv run --isolated --resolution lowest-direct pytest tests/unit
 
 # Audits the locked dependencies for known vulnerabilities. pip-audit runs as
 # a standalone tool so that its own dependencies stay out of the test
