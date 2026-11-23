@@ -33,9 +33,18 @@ checks:
     - uv run ruff format --check .
     - uv run mypy
     - uv run pytest --junitxml=report.xml
-    - uv run pip-audit
     - uv build
   artifacts:
     when: always
     reports:
       junit: report.xml
+
+# Audits the locked dependencies for known vulnerabilities. pip-audit runs as
+# a standalone tool so that its own dependencies stay out of the test
+# environment.
+audit:
+  stage: test
+  image: ghcr.io/astral-sh/uv:python3.13-bookworm-slim
+  script:
+    - uv export --locked --no-emit-project --output-file requirements-audit.txt
+    - uvx pip-audit --requirement requirements-audit.txt --disable-pip

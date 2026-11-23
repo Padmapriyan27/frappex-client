@@ -19,7 +19,13 @@ uv run ruff check .
 uv run ruff format --check .
 uv run mypy
 uv run pytest
-uv run pip-audit
+```
+
+CI also audits the locked dependencies for known vulnerabilities:
+
+```bash
+uv export --locked --no-emit-project --output-file requirements-audit.txt
+uvx pip-audit --requirement requirements-audit.txt --disable-pip
 ```
 
 ## How the code is organised

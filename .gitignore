@@ -12,3 +12,4 @@ htmlcov/
 .env
 .env.*
 .uv-cache/
+requirements-audit.txt
