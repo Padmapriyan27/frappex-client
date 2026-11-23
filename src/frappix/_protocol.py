@@ -141,10 +141,11 @@ def parse_retry_after(headers: Mapping[str, str]) -> float | None:
     return seconds if seconds >= 0 else None
 
 
-def _load_json(body: bytes) -> Any:
+def _load_json(body: bytes | str) -> Any:
+    """Parse JSON, returning ``None`` for anything that is not valid JSON."""
     try:
         return json.loads(body)
-    except (ValueError, UnicodeDecodeError):
+    except (ValueError, UnicodeDecodeError, RecursionError):
         return None
 
 
@@ -155,12 +156,12 @@ def _server_messages(payload: Mapping[str, Any]) -> tuple[str, ...]:
     as strings; anything that does not fit that shape is kept verbatim.
     """
     raw = payload.get("_server_messages")
-    items = _load_json(raw.encode()) if isinstance(raw, str) else raw
+    items = _load_json(raw) if isinstance(raw, str) else raw
     if not isinstance(items, list):
         return ()
     messages: list[str] = []
     for item in items:
-        parsed = _load_json(item.encode()) if isinstance(item, str) else item
+        parsed = _load_json(item) if isinstance(item, str) else item
         if isinstance(parsed, Mapping) and isinstance(parsed.get("message"), str):
             messages.append(parsed["message"])
         elif isinstance(item, str):
@@ -170,7 +171,7 @@ def _server_messages(payload: Mapping[str, Any]) -> tuple[str, ...]:
 
 def _traceback(payload: Mapping[str, Any]) -> str | None:
     raw = payload.get("exc")
-    parsed = _load_json(raw.encode()) if isinstance(raw, str) else raw
+    parsed = _load_json(raw) if isinstance(raw, str) else raw
     if isinstance(parsed, list):
         return "\n".join(str(part) for part in parsed) or None
     return raw if isinstance(raw, str) and raw else None

@@ -44,6 +44,8 @@ def _tls_setting(verify: ssl.SSLContext | str | os.PathLike[str] | None) -> ssl.
         )
     if isinstance(verify, ssl.SSLContext):
         return verify
+    if not isinstance(verify, str | os.PathLike):
+        raise ConfigurationError("verify must be a CA bundle path or an ssl.SSLContext.")
     try:
         return ssl.create_default_context(cafile=os.fspath(verify))
     except (OSError, ssl.SSLError) as exc:
