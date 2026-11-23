@@ -19,6 +19,13 @@ workflow:
     - if: $CI_COMMIT_BRANCH
     - if: $CI_COMMIT_TAG
 
+# A runner that cannot pull an image is an infrastructure fault, not a test
+# failure: try again before reporting the job as failed.
+default:
+  retry:
+    max: 2
+    when: [runner_system_failure, stuck_or_timeout_failure]
+
 variables:
   UV_CACHE_DIR: .uv-cache
   UV_LINK_MODE: copy
