@@ -1,5 +1,12 @@
 # frappix
 
+[![CI](https://github.com/Padmapriyan27/frappix/actions/workflows/ci.yml/badge.svg)](https://github.com/Padmapriyan27/frappix/actions/workflows/ci.yml)
+[![Integration](https://github.com/Padmapriyan27/frappix/actions/workflows/integration.yml/badge.svg)](https://github.com/Padmapriyan27/frappix/actions/workflows/integration.yml)
+[![Security](https://github.com/Padmapriyan27/frappix/actions/workflows/security.yml/badge.svg)](https://github.com/Padmapriyan27/frappix/actions/workflows/security.yml)
+[![CodeQL](https://github.com/Padmapriyan27/frappix/actions/workflows/codeql.yml/badge.svg)](https://github.com/Padmapriyan27/frappix/actions/workflows/codeql.yml)
+[![OpenSSF Scorecard](https://api.scorecard.dev/projects/github.com/Padmapriyan27/frappix/badge)](https://scorecard.dev/viewer/?uri=github.com/Padmapriyan27/frappix)
+[![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
+
 A typed REST client for [Frappe](https://frappe.io/framework) and ERPNext sites,
 with a blocking client and an `asyncio` client that share one implementation.
 
@@ -172,6 +179,7 @@ uv run pytest -m integration
 - [Developer guide](docs/DEVELOPMENT.md): architecture, adding a call, tests, releasing
 - [Product requirements](docs/PRD.md): goals, scope and requirements
 - [Security policy](SECURITY.md)
+- [Contributing](CONTRIBUTING.md)
 - [Changelog](CHANGELOG.md)
 
 ## License

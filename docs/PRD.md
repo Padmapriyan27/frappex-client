@@ -143,18 +143,16 @@ No numeric adoption target has been set yet.
 | Integration tests written | Done |
 | Integration tests run against Frappe v15 (15.112.0) | Done, 2026-11-23 |
 | Integration tests run against Frappe v16 (16.0.0-dev) | Done, 2026-11-23 |
-| Integration tests run against Frappe v14 | Not started |
-| Private repository on GitLab (git.selfmade.ninja) | Done |
-| Public repository for the community | Pending decision |
+| Integration tests in CI on Frappe v14, v15 and v16 | Workflow added; see the Integration badge for the current state |
+| Security scanning in CI | Done |
+| Public repository on GitHub (canonical) and GitLab (mirror) | Done |
 | PyPI project and Trusted Publisher configured | Pending decision |
 | 0.1.0 published and announced on the Frappe forum | Pending |
 
 ## 10. Open questions
 
-1. Where does the public repository live? Development is on a self-hosted GitLab
-   (`.gitlab-ci.yml`). PyPI Trusted Publishing supports GitHub and gitlab.com
-   but not a self-hosted GitLab, so the release workflow in `.github/` only
-   works from a GitHub mirror.
+1. Resolved: GitHub is the canonical repository (required for PyPI Trusted
+   Publishing); the self-hosted GitLab is a mirror.
 2. Who owns the PyPI project and receives security reports?
 3. Should `submit` and `cancel` return the updated document? They return nothing in 0.1.0.
 4. Which release adds `/api/v2` support?

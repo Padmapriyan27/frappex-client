@@ -100,7 +100,8 @@ stated reason and a test.
 
 | Kind | Location | Needs |
 |---|---|---|
-| Pure logic | `tests/unit/test_pure.py` | Nothing |
+| Pure logic | `tests/unit/test_pure.py`, `tests/unit/test_operations.py` | Nothing |
+| Security guarantees, property-based (Hypothesis) | `tests/unit/test_security.py` | Nothing |
 | Both clients against a fake site | `tests/unit/test_clients.py` | Nothing |
 | Real Frappe site | `tests/integration/` | A site and an API key |
 
@@ -147,6 +148,36 @@ Known server behaviour the tests allow for: the development server
 (`bench serve`) answers HTTP 500 for a missing static file, where a
 production site behind nginx answers 404.
 
+### Starting a throwaway site
+
+`scripts/ci/start_frappe_site.sh` builds a fresh Frappe site and serves it.
+CI uses it for every supported Frappe version; you can use it locally with
+MariaDB on `127.0.0.1:3306` (root/root) and Redis on `127.0.0.1:6379`:
+
+```bash
+scripts/ci/start_frappe_site.sh version-15 /tmp/frappix-bench
+set -a && . /tmp/frappix-bench/test.env && set +a
+uv run pytest tests/integration
+```
+
+## Continuous integration
+
+GitHub is the canonical repository; the GitLab pipeline mirrors the core
+checks.
+
+| Workflow | What it does |
+|---|---|
+| `ci.yml` | Lint, types, unit tests with coverage (minimum 90%) on Python 3.10 to 3.14; oldest supported `httpx`; package build and metadata checks |
+| `integration.yml` | Integration suite against real Frappe v14, v15 and v16 sites |
+| `security.yml` | Dependency audit, Gitleaks, workflow audit (zizmor), dependency review on pull requests; also weekly |
+| `codeql.yml` | CodeQL static analysis |
+| `scorecard.yml` | OpenSSF Scorecard |
+| `release.yml` | TestPyPI, then PyPI, through Trusted Publishing |
+| `.gitlab-ci.yml` | Lint, types, tests, audit, build, Semgrep SAST and secret detection |
+
+Actions are pinned by commit hash and container images by digest;
+Dependabot proposes updates weekly.
+
 ## Style
 
 - Code and docstrings follow PEP 8 and PEP 257, with Google-style docstring
@@ -161,11 +192,13 @@ production site behind nginx answers 404.
 1. Update `version` in `pyproject.toml` and move the `Unreleased` entries in
    `CHANGELOG.md` under the new version.
 2. Run the full checks and the integration tests.
-3. Merge to `main`, then publish a GitHub release with the tag `v<version>`.
-   This step needs a GitHub mirror of the repository: PyPI Trusted Publishing
-   does not support a self-hosted GitLab.
-4. The `Release` workflow builds the package and publishes it to PyPI through
-   Trusted Publishing. No PyPI token is stored anywhere.
+3. Rehearse: run the `Release` workflow by hand (Actions > Release > Run
+   workflow). That builds the package and publishes it to TestPyPI only.
+4. Merge to `main`, then publish a GitHub release with the tag `v<version>`.
+   The workflow checks that the tag matches the package version, publishes
+   to TestPyPI and then to PyPI, each with provenance attestations.
 
-One-time setup: on PyPI, register the repository and `release.yml` as a
-trusted publisher for the `frappix` project, with the environment `pypi`.
+One-time setup, on both test.pypi.org and pypi.org: add a trusted publisher
+for the project `frappix` with the repository `Padmapriyan27/frappix`, the
+workflow `release.yml`, and the environment `testpypi` or `pypi`. No upload
+token is stored anywhere.

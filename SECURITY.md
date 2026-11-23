@@ -2,9 +2,9 @@
 
 ## Reporting a vulnerability
 
-Please report security problems privately through the repository's
-"Report a vulnerability" form (GitHub Security Advisories), not in a public
-issue. Include the affected version, what an attacker can do, and steps to
+Please report security problems privately, not in a public issue, through
+[Report a vulnerability](https://github.com/Padmapriyan27/frappix/security/advisories/new)
+on GitHub. Include the affected version, what an attacker can do, and steps to
 reproduce. You will get an acknowledgement, and a fix is released before the
 details are published.
 
@@ -28,3 +28,18 @@ Only the latest release receives security fixes.
 frappix does not sanitise the data a site returns. Server messages and
 document fields can contain HTML written by other users; escape them before
 rendering.
+
+## How the project is checked
+
+Every change runs these checks in CI:
+
+| Check | Purpose |
+|---|---|
+| `tests/unit/test_security.py` | Property-based tests of each guarantee above |
+| ruff security rules, CodeQL, Semgrep | Static analysis of the source |
+| pip-audit, dependency review, Dependabot | Known vulnerabilities in dependencies |
+| Gitleaks, GitHub secret scanning | Committed credentials |
+| zizmor, OpenSSF Scorecard | CI configuration and supply-chain practices |
+
+Releases are published to PyPI through Trusted Publishing with signed
+provenance attestations. No long-lived upload token exists.
