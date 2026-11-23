@@ -109,7 +109,8 @@ class TestAuthentication:
         try:
             with Client(URL, **OPTIONS) as guest:
                 assert guest.ping() == "pong"
-                assert guest.get_logged_user() == "Guest"
+                with pytest.raises(PermissionDeniedError):
+                    guest.get_logged_user()  # not open to guests
                 assert guest.download(uploaded["file_url"]) == b"public"
                 with pytest.raises((PermissionDeniedError, AuthenticationError)):
                     guest.get_list("User")
