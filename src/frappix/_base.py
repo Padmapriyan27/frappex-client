@@ -62,7 +62,7 @@ class ClientCore:
     def __init__(
         self,
         base_url: str,
-        auth: Auth,
+        auth: Auth | None,
         *,
         timeout: float | httpx.Timeout,
         retry: RetryPolicy | None,
@@ -72,8 +72,10 @@ class ClientCore:
         headers: Mapping[str, str] | None,
     ) -> None:
         """Validate every setting before any connection is made."""
-        if not isinstance(auth, TokenAuth | BearerAuth | PasswordAuth):
-            raise ConfigurationError("auth must be a TokenAuth, BearerAuth or PasswordAuth.")
+        if auth is not None and not isinstance(auth, TokenAuth | BearerAuth | PasswordAuth):
+            raise ConfigurationError(
+                "auth must be a TokenAuth, BearerAuth or PasswordAuth, or None for guest access."
+            )
         if max_response_bytes < 1:
             raise ConfigurationError("max_response_bytes must be positive.")
         if not isinstance(timeout, httpx.Timeout) and timeout <= 0:
@@ -89,7 +91,7 @@ class ClientCore:
                 "Accept": "application/json",
                 "User-Agent": f"frappix/{_VERSION}",
                 **validate_extra_headers(headers),
-                **auth.headers(),
+                **(auth.headers() if auth is not None else {}),
             },
             "timeout": timeout,
             "verify": _tls_setting(verify),
@@ -105,9 +107,8 @@ class ClientCore:
 
     def __repr__(self) -> str:
         """Describe the client without revealing credentials."""
-        return (
-            f"{type(self).__name__}(base_url={self._base_url!r}, auth={type(self._auth).__name__})"
-        )
+        auth = "guest" if self._auth is None else type(self._auth).__name__
+        return f"{type(self).__name__}(base_url={self._base_url!r}, auth={auth})"
 
     @property
     def _needs_login(self) -> bool:

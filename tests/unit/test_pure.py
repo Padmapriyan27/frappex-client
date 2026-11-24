@@ -171,6 +171,25 @@ class TestDecode:
         assert caught.value.status_code == status
         assert caught.value.exc_type == "SomeError"
 
+    @pytest.mark.parametrize(
+        ("payload", "expected"),
+        [
+            ({"exc_type": "MandatoryError"}, "MandatoryError"),
+            ({"exception": "frappe.exceptions.MandatoryError: Title"}, "MandatoryError"),
+            ({"exception": "ValueError: bad"}, "ValueError"),
+            ({"exc_type": "A", "exception": "pkg.B: x"}, "A"),
+            ({"exception": "not an exception line"}, None),
+            ({"exception": 5}, None),
+            ({}, None),
+        ],
+    )
+    def test_exception_type_is_read_from_either_field(
+        self, payload: dict[str, object], expected: str | None
+    ) -> None:
+        with pytest.raises(ValidationError) as caught:
+            decode(raw(417, payload))
+        assert caught.value.exc_type == expected
+
     def test_server_messages_are_unpacked(self) -> None:
         body = {
             "exc_type": "ValidationError",

@@ -76,7 +76,7 @@ calls by hand. In both cases they solve the same problems again each time:
 | ID | Requirement | In 0.1.0 |
 |---|---|---|
 | F1 | Sync `Client` and async `AsyncClient` with identical methods. | Yes |
-| F2 | Authentication by API key and secret, OAuth bearer token, or username and password. | Yes |
+| F2 | Authentication by API key and secret, OAuth bearer token, or username and password; guest access without credentials. | Yes |
 | F3 | Document calls: list, get, insert, update, delete, submit, cancel, rename. | Yes |
 | F4 | `get_count`, `get_value`, `set_value`. | Yes |
 | F5 | Call any whitelisted method by `GET` or `POST`. | Yes |
@@ -108,8 +108,8 @@ Each of S1–S10 has at least one automated test.
 ### 6.3 Quality
 
 - Python 3.10 to 3.14.
-- Frappe v15 and v16 on the `/api/resource` and `/api/method` routes, verified
-  by the integration suite. v14 is intended but not yet tested.
+- Frappe v14, v15 and v16 on the `/api/resource` and `/api/method` routes,
+  verified by the integration suite in CI.
 - `mypy --strict` and `ruff` clean; public names documented.
 - Unit tests run without a network. Integration tests run against a real
   site and touch only data they create.

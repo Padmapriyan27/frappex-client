@@ -14,6 +14,7 @@ from frappix import (
     FrappixError,
     NotFoundError,
     PasswordAuth,
+    PermissionDeniedError,
     ResponseTooLargeError,
     ServerError,
     TokenAuth,
@@ -100,6 +101,21 @@ class TestAuthentication:
                 pytest.raises(FrappixError),
             ):
                 bad.download(uploaded["file_url"])
+        finally:
+            client.delete("File", uploaded["name"])
+
+    def test_guest_reaches_only_what_the_site_opens(self, client: Client, marker: str) -> None:
+        uploaded = client.upload_file(f"{marker}.txt", b"public", is_private=False)
+        try:
+            with Client(URL, **OPTIONS) as guest:
+                assert guest.ping() == "pong"
+                with pytest.raises(PermissionDeniedError):
+                    guest.get_logged_user()  # not open to guests
+                assert guest.download(uploaded["file_url"]) == b"public"
+                with pytest.raises((PermissionDeniedError, AuthenticationError)):
+                    guest.get_list("User")
+                with pytest.raises((PermissionDeniedError, AuthenticationError)):
+                    guest.insert("ToDo", {"description": f"{marker} guest"})
         finally:
             client.delete("File", uploaded["name"])
 

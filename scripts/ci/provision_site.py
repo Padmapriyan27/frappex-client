@@ -7,6 +7,7 @@ Run with the Frappe environment's Python from the bench ``sites`` directory:
 Writes ``NAME=value`` lines for the FRAPPIX_TEST_* settings to ``env-file``.
 """
 
+import os
 import sys
 
 import frappe
@@ -30,7 +31,10 @@ def main(site: str, port: str, env_file: str) -> None:
         "FRAPPIX_TEST_API_SECRET": secret,
         "FRAPPIX_TEST_USERNAME": "Administrator",
     }
-    with open(env_file, "w", encoding="utf-8") as handle:
+    # These are credentials for a site that exists only for one test run. The
+    # file is readable by the owner alone and is deleted with the runner.
+    descriptor = os.open(env_file, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600)
+    with os.fdopen(descriptor, "w", encoding="utf-8") as handle:
         handle.writelines(f"{name}={value}\n" for name, value in settings.items())
 
 

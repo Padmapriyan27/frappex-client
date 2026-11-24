@@ -156,6 +156,30 @@ class TestRequests:
             site.run(lambda c: c.upload_file("../../etc/passwd", b"x"))
 
 
+class TestGuestAccess:
+    def test_no_credentials_are_sent(self, site: Site) -> None:
+        site.reply(body={"message": "pong"})
+        assert site.run(lambda c: c.ping(), auth=None) == "pong"
+        request = site.requests[0]
+        assert "authorization" not in request.headers
+        assert "cookie" not in request.headers
+
+    def test_protected_data_maps_to_permission_error(self, site: Site) -> None:
+        site.reply(403, {"exc_type": "PermissionError"})
+        with pytest.raises(PermissionDeniedError):
+            site.run(lambda c: c.get_list("User"), auth=None)
+        assert [r.url.path for r in site.requests] == ["/api/resource/User"]
+
+    def test_guest_can_call_a_method_and_fetch_a_public_file(self, site: Site) -> None:
+        site.reply(body={"message": {"open": True}})
+        assert site.run(lambda c: c.call("app.api.public_info"), auth=None) == {"open": True}
+
+        files = Site(site.kind)
+        files.reply(content=b"logo")
+        assert files.run(lambda c: c.download("/files/logo.png"), auth=None) == b"logo"
+        assert "authorization" not in files.requests[0].headers
+
+
 class TestDownloads:
     def test_download_returns_bytes(self, site: Site) -> None:
         site.reply(content=b"PDFDATA")
@@ -335,6 +359,12 @@ class TestConstruction:
     def test_authorization_header_cannot_be_injected(self, kind: Any) -> None:
         with pytest.raises(ConfigurationError):
             kind(URL, self.auth, headers={"Authorization": "token other:other"})
+
+    def test_auth_is_optional(self, kind: Any) -> None:
+        client = kind(URL)
+        assert client.base_url == URL
+        assert repr(client) == f"{kind.__name__}(base_url={URL!r}, auth=guest)"
+        assert "authorization" not in client._http.headers
 
     def test_repr_hides_credentials(self, kind: Any) -> None:
         assert API_SECRET not in repr(kind(URL, self.auth))
