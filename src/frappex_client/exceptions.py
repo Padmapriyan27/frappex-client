@@ -1,6 +1,6 @@
-"""Exceptions raised by frappix.
+"""Exceptions raised by frappex-client.
 
-Every exception derives from :class:`FrappixError`, so callers can catch the
+Every exception derives from :class:`FrappexError`, so callers can catch the
 whole family with one clause or pick a specific failure.
 """
 
@@ -11,7 +11,7 @@ __all__ = [
     "AuthenticationError",
     "ConfigurationError",
     "ConflictError",
-    "FrappixError",
+    "FrappexError",
     "NotFoundError",
     "PermissionDeniedError",
     "RateLimitError",
@@ -24,15 +24,15 @@ __all__ = [
 ]
 
 
-class FrappixError(Exception):
-    """Base class for every error raised by frappix."""
+class FrappexError(Exception):
+    """Base class for every error raised by frappex-client."""
 
 
-class ConfigurationError(FrappixError, ValueError):
+class ConfigurationError(FrappexError, ValueError):
     """The client or a call was given an unusable or unsafe argument."""
 
 
-class TransportError(FrappixError):
+class TransportError(FrappexError):
     """The request never produced an HTTP response (DNS, TLS, connection)."""
 
 
@@ -40,11 +40,11 @@ class RequestTimeoutError(TransportError):
     """The request exceeded its timeout."""
 
 
-class ResponseTooLargeError(FrappixError):
+class ResponseTooLargeError(FrappexError):
     """The response body exceeded the configured size limit."""
 
 
-class UnexpectedResponseError(FrappixError):
+class UnexpectedResponseError(FrappexError):
     """The server answered with something that is not a Frappe API reply.
 
     Typical causes are a redirect (never followed, so credentials stay on the
@@ -57,7 +57,7 @@ class UnexpectedResponseError(FrappixError):
         self.status_code = status_code
 
 
-class APIError(FrappixError):
+class APIError(FrappexError):
     """The Frappe site rejected the request.
 
     Attributes:

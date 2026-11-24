@@ -4,8 +4,8 @@ from __future__ import annotations
 
 import pytest
 
-from frappix import ConfigurationError, UnexpectedResponseError
-from frappix import _operations as ops
+from frappex_client import ConfigurationError, UnexpectedResponseError
+from frappex_client import _operations as ops
 
 
 class TestArguments:

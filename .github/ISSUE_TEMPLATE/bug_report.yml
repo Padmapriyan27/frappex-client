@@ -1,5 +1,5 @@
 name: Bug report
-description: Something in frappix does not work as documented.
+description: Something in frappex-client does not work as documented.
 labels: [bug]
 body:
   - type: markdown
@@ -8,9 +8,9 @@ body:
         Do not report security problems here. See the security policy instead.
         Remove API keys, passwords and personal data from anything you paste.
   - type: input
-    id: frappix-version
+    id: frappex-client-version
     attributes:
-      label: frappix version
+      label: frappex-client version
       placeholder: "0.1.0"
     validations:
       required: true

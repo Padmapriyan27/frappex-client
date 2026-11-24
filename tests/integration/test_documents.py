@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import pytest
 
-from frappix import Client, ConflictError, NotFoundError, ValidationError
+from frappex_client import Client, ConflictError, NotFoundError, ValidationError
 
 
 def like(marker: str) -> dict[str, list[str]]:
@@ -143,4 +143,4 @@ def test_missing_mandatory_field_is_a_validation_error(client: Client, doctype: 
 
 def test_unknown_doctype_is_not_found(client: Client) -> None:
     with pytest.raises(NotFoundError):
-        client.get_list("No Such DocType Frappix")
+        client.get_list("No Such DocType Frappex")

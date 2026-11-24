@@ -21,14 +21,14 @@ from .exceptions import (
     TransportError,
 )
 
-logger = logging.getLogger("frappix")
+logger = logging.getLogger("frappex_client")
 
 DEFAULT_TIMEOUT = 30.0
 DEFAULT_MAX_RESPONSE_BYTES = 64 * 1024 * 1024
 CHUNK_SIZE = 64 * 1024
 
 try:
-    _VERSION = version("frappix")
+    _VERSION = version("frappex-client")
 except PackageNotFoundError:  # running from a source tree that is not installed
     _VERSION = "0+unknown"
 
@@ -89,7 +89,7 @@ class ClientCore:
             "base_url": self._base_url,
             "headers": {
                 "Accept": "application/json",
-                "User-Agent": f"frappix/{_VERSION}",
+                "User-Agent": f"frappex-client/{_VERSION}",
                 **validate_extra_headers(headers),
                 **(auth.headers() if auth is not None else {}),
             },

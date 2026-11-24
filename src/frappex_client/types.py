@@ -1,4 +1,4 @@
-"""Public type aliases used in frappix signatures."""
+"""Public type aliases used in frappex-client signatures."""
 
 from __future__ import annotations
 
@@ -14,4 +14,4 @@ Filters: TypeAlias = Mapping[str, Any] | Sequence[Sequence[Any]]
 """Frappe filters: ``{"status": "Open"}`` or ``[["status", "=", "Open"]]``."""
 
 HTTPMethod: TypeAlias = Literal["GET", "POST", "PUT", "DELETE"]
-"""HTTP methods frappix sends."""
+"""HTTP methods frappex-client sends."""

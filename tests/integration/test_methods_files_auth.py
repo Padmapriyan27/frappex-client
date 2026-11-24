@@ -7,11 +7,11 @@ import io
 
 import pytest
 
-from frappix import (
+from frappex_client import (
     AsyncClient,
     AuthenticationError,
     Client,
-    FrappixError,
+    FrappexError,
     NotFoundError,
     PasswordAuth,
     PermissionDeniedError,
@@ -41,14 +41,14 @@ class TestMethods:
         assert saved["status"] == "Closed"
 
     def test_unknown_method_raises(self, client: Client) -> None:
-        with pytest.raises(FrappixError):
-            client.call("frappix.no_such_module.no_such_method")
+        with pytest.raises(FrappexError):
+            client.call("frappex_client.no_such_module.no_such_method")
 
 
 class TestFiles:
     def test_private_upload_and_download(self, client: Client, marker: str) -> None:
         todo = client.insert("ToDo", {"description": f"{marker} file"})
-        payload = b"frappix payload \x00\xff" * 100
+        payload = b"frappex payload \x00\xff" * 100
         uploaded = client.upload_file(
             f"{marker}.bin", payload, doctype="ToDo", docname=todo["name"]
         )
@@ -80,7 +80,7 @@ class TestFiles:
         # A production site (nginx) answers 404. The development server
         # (`bench serve`) answers 500 for a missing static file.
         with pytest.raises((NotFoundError, ServerError)):
-            client.download("/files/frappix-no-such-file.bin")
+            client.download("/files/frappex-no-such-file.bin")
 
 
 class TestAuthentication:
@@ -98,7 +98,7 @@ class TestAuthentication:
         try:
             with (
                 Client(URL, TokenAuth(KEY, "wrong-secret"), **OPTIONS) as bad,
-                pytest.raises(FrappixError),
+                pytest.raises(FrappexError),
             ):
                 bad.download(uploaded["file_url"])
         finally:
@@ -120,7 +120,7 @@ class TestAuthentication:
             client.delete("File", uploaded["name"])
 
     @pytest.mark.skipif(
-        not (USERNAME and PASSWORD), reason="FRAPPIX_TEST_USERNAME/PASSWORD are not set"
+        not (USERNAME and PASSWORD), reason="FRAPPEX_TEST_USERNAME/PASSWORD are not set"
     )
     def test_password_session(self, marker: str) -> None:
         with Client(URL, PasswordAuth(USERNAME, PASSWORD), **OPTIONS) as session:
@@ -130,7 +130,7 @@ class TestAuthentication:
             session.delete("ToDo", todo["name"])
 
     @pytest.mark.skipif(
-        not (USERNAME and PASSWORD), reason="FRAPPIX_TEST_USERNAME/PASSWORD are not set"
+        not (USERNAME and PASSWORD), reason="FRAPPEX_TEST_USERNAME/PASSWORD are not set"
     )
     def test_wrong_password(self) -> None:
         with (

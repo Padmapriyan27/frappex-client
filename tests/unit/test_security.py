@@ -17,19 +17,19 @@ import pytest
 from hypothesis import example, given
 from hypothesis import strategies as st
 
-from frappix import (
+from frappex_client import (
     AsyncClient,
     BearerAuth,
     Client,
     ConfigurationError,
-    FrappixError,
+    FrappexError,
     PasswordAuth,
     RetryPolicy,
     Secret,
     TokenAuth,
 )
-from frappix._config import normalise_base_url, validate_extra_headers
-from frappix._protocol import RawResponse, decode, file_path, method_path, resource_path
+from frappex_client._config import normalise_base_url, validate_extra_headers
+from frappex_client._protocol import RawResponse, decode, file_path, method_path, resource_path
 
 BASE = "https://erp.example.com"
 HOST = "erp.example.com"
@@ -229,7 +229,7 @@ class TestWritesAreNeverRepeated:
 class TestHostileRepliesCannotCrashTheClient:
     @given(status=st.integers(min_value=100, max_value=599), body=st.binary(max_size=200))
     def test_arbitrary_bytes(self, status: int, body: bytes) -> None:
-        with contextlib.suppress(FrappixError):
+        with contextlib.suppress(FrappexError):
             assert isinstance(decode(RawResponse(status, {}, body)), dict)
 
     @given(
@@ -252,6 +252,6 @@ class TestHostileRepliesCannotCrashTheClient:
         self, status: int, payload: dict[str, Any], retry_after: str | None
     ) -> None:
         headers = {} if retry_after is None else {"Retry-After": retry_after}
-        with pytest.raises(FrappixError) as caught:
+        with pytest.raises(FrappexError) as caught:
             decode(RawResponse(status, headers, json.dumps(payload).encode()))
         assert isinstance(str(caught.value), str)

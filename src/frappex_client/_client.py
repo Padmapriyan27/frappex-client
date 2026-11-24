@@ -25,7 +25,7 @@ from ._base import (
 )
 from ._config import RetryPolicy
 from ._protocol import RawResponse, Request, decode, file_path, parse_retry_after
-from .exceptions import FrappixError, TransportError, UnexpectedResponseError
+from .exceptions import FrappexError, TransportError, UnexpectedResponseError
 from .types import Document, Filters
 
 T = TypeVar("T")
@@ -44,13 +44,13 @@ class Client(ClientCore):
     Args:
         base_url: Root address of the site. Must be ``https://`` unless
             ``allow_insecure_http`` is set.
-        auth: A :class:`~frappix.TokenAuth`, :class:`~frappix.BearerAuth` or
-            :class:`~frappix.PasswordAuth`. Omit it for guest access: no
+        auth: A :class:`~frappex_client.TokenAuth`, :class:`~frappex_client.BearerAuth` or
+            :class:`~frappex_client.PasswordAuth`. Omit it for guest access: no
             credentials are sent, so only what the site opens to guests
             works, such as :meth:`ping`, public files and methods
             whitelisted with ``allow_guest``.
         timeout: Seconds allowed per request, or an ``httpx.Timeout``.
-        retry: Retry rules; defaults to :class:`~frappix.RetryPolicy`.
+        retry: Retry rules; defaults to :class:`~frappex_client.RetryPolicy`.
         verify: Path of a CA bundle or an ``ssl.SSLContext`` for sites with a
             private certificate. Certificate checks cannot be disabled.
         allow_insecure_http: Permit ``http://`` for a local development site.
@@ -102,7 +102,7 @@ class Client(ClientCore):
                 self._logged_in = False
                 try:
                     self._run(ops.logout())
-                except FrappixError:
+                except FrappexError:
                     logger.debug("logout failed; the session will expire on its own")
         finally:
             self._http.close()
@@ -395,7 +395,7 @@ class Client(ClientCore):
             file_url: Site-relative location, such as ``/private/files/a.pdf``
                 (the ``file_url`` field of a ``File`` document).
             target: Writable binary file object.
-            max_bytes: Stop with :class:`~frappix.ResponseTooLargeError` after
+            max_bytes: Stop with :class:`~frappex_client.ResponseTooLargeError` after
                 this many bytes; unlimited when omitted.
 
         Returns:

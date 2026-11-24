@@ -4,14 +4,14 @@
 # Usage: start_frappe_site.sh <frappe-branch> <work-directory>
 #
 # Needs MariaDB on 127.0.0.1:3306 (root/root) and Redis on 127.0.0.1:6379.
-# Exports FRAPPIX_TEST_* through $GITHUB_ENV when that variable is set,
+# Exports FRAPPEX_TEST_* through $GITHUB_ENV when that variable is set,
 # otherwise prints the file to source.
 set -euo pipefail
 
 script_dir="$(cd "$(dirname "$0")" && pwd)"
 branch="$1"
 work="$2"
-site="frappix.test"
+site="frappex.test"
 port=8000
 
 mkdir -p "$work/apps" "$work/sites" "$work/logs"
@@ -64,7 +64,7 @@ frappe new-site "$site" \
 
 env_file="$work/test.env"
 (cd "$work/sites" && "$work/env/bin/python" "$script_dir/provision_site.py" "$site" "$port" "$env_file")
-echo "FRAPPIX_TEST_PASSWORD=$admin_password" >> "$env_file"
+echo "FRAPPEX_TEST_PASSWORD=$admin_password" >> "$env_file"
 
 (cd "$work/sites" && nohup "$work/env/bin/python" -m frappe.utils.bench_helper frappe \
     --site "$site" serve --port "$port" --noreload > "$work/logs/serve.log" 2>&1 &)

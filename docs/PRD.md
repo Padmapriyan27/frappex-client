@@ -1,14 +1,14 @@
-# frappix: product requirements
+# frappex-client: product requirements
 
 | | |
 |---|---|
 | Status | Draft for review |
-| Version covered | 0.1.0 (first public release) |
+| Version covered | 0.1.x (first public releases) |
 | Last updated | 2026-11-23 |
 
 ## 1. Summary
 
-frappix is a Python library for talking to a Frappe or ERPNext site over its
+frappex-client is a Python library for talking to a Frappe or ERPNext site over its
 REST API. It offers a blocking client and an `asyncio` client with the same
 methods, typed results and errors, automatic pagination, and security rules
 that are on by default.
@@ -129,7 +129,7 @@ No numeric adoption target has been set yet.
 
 | Risk | Effect | Response |
 |---|---|---|
-| Frappe publishes an official client. | frappix becomes an alternative, not the default. | Keep the scope small and the quality high; offer the code upstream. |
+| Frappe publishes an official client. | frappex-client becomes an alternative, not the default. | Keep the scope small and the quality high; offer the code upstream. |
 | `frappe-connector` adds async support. | The main differentiator narrows. | Compete on security defaults, typing and pagination. |
 | Audience is limited to Frappe developers. | Download ceiling is modest. | Accepted; it was chosen for provable demand over reach. |
 | Frappe changes REST behaviour between versions. | Calls break on a new version. | Integration tests per supported version. |
@@ -147,7 +147,10 @@ No numeric adoption target has been set yet.
 | Security scanning in CI | Done |
 | Public repository on GitHub (canonical) and GitLab (mirror) | Done |
 | PyPI project and Trusted Publisher configured | Pending decision |
-| 0.1.0 published and announced on the Frappe forum | Pending |
+| 0.1.0 published to PyPI as `frappix` | Done, 2026-11-24; yanked after the rename |
+| Renamed to `frappex-client` (the name `frappix` belongs to an existing Frappe community project) | Done, 2026-11-24 |
+| 0.1.1 published as `frappex-client` | In progress |
+| Announced on the Frappe forum | Pending |
 
 ## 10. Open questions
 

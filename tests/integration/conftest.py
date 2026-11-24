@@ -1,7 +1,7 @@
 """Fixtures for tests that talk to a real Frappe site.
 
-The whole directory is skipped unless FRAPPIX_TEST_URL, FRAPPIX_TEST_API_KEY
-and FRAPPIX_TEST_API_SECRET are set. Point them at a development site, never
+The whole directory is skipped unless FRAPPEX_TEST_URL, FRAPPEX_TEST_API_KEY
+and FRAPPEX_TEST_API_SECRET are set. Point them at a development site, never
 production. The API user needs the System Manager role, because one fixture
 creates (and afterwards deletes) a custom DocType.
 
@@ -18,14 +18,14 @@ from typing import Any
 
 import pytest
 
-from frappix import Client, NotFoundError, TokenAuth
+from frappex_client import Client, NotFoundError, TokenAuth
 
-URL = os.environ.get("FRAPPIX_TEST_URL", "")
-KEY = os.environ.get("FRAPPIX_TEST_API_KEY", "")
-SECRET = os.environ.get("FRAPPIX_TEST_API_SECRET", "")
-HOST = os.environ.get("FRAPPIX_TEST_HOST_HEADER", "")
-USERNAME = os.environ.get("FRAPPIX_TEST_USERNAME", "")
-PASSWORD = os.environ.get("FRAPPIX_TEST_PASSWORD", "")
+URL = os.environ.get("FRAPPEX_TEST_URL", "")
+KEY = os.environ.get("FRAPPEX_TEST_API_KEY", "")
+SECRET = os.environ.get("FRAPPEX_TEST_API_SECRET", "")
+HOST = os.environ.get("FRAPPEX_TEST_HOST_HEADER", "")
+USERNAME = os.environ.get("FRAPPEX_TEST_USERNAME", "")
+PASSWORD = os.environ.get("FRAPPEX_TEST_PASSWORD", "")
 
 CONFIGURED = bool(URL and KEY and SECRET)
 
@@ -58,7 +58,7 @@ def client() -> Iterator[Client]:
 @pytest.fixture
 def marker(client: Client) -> Iterator[str]:
     """A unique tag; every ToDo whose description contains it is deleted."""
-    tag = f"frappix-test-{uuid.uuid4().hex}"
+    tag = f"frappex-test-{uuid.uuid4().hex}"
     yield tag
     for row in client.iter_list("ToDo", filters={"description": ["like", f"%{tag}%"]}):
         client.delete("ToDo", row["name"])
@@ -67,7 +67,7 @@ def marker(client: Client) -> Iterator[str]:
 @pytest.fixture(scope="session")
 def doctype(client: Client) -> Iterator[str]:
     """A throwaway submittable DocType whose documents are named by the caller."""
-    name = f"Frappix Test {uuid.uuid4().hex[:8]}"
+    name = f"Frappex Test {uuid.uuid4().hex[:8]}"
     client.insert(
         "DocType",
         {
