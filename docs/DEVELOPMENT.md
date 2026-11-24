@@ -1,6 +1,6 @@
 # Developer guide
 
-For people changing frappix itself. To *use* the library, read the
+For people changing frappex-client itself. To *use* the library, read the
 [README](../README.md).
 
 ## Setup
@@ -8,7 +8,7 @@ For people changing frappix itself. To *use* the library, read the
 You need [uv](https://docs.astral.sh/uv/) and Python 3.10 or newer.
 
 ```bash
-git clone <repository-url> && cd frappix
+git clone <repository-url> && cd frappex-client
 uv sync
 ```
 
@@ -35,7 +35,7 @@ the network. The two clients are thin layers that send what those functions
 describe. This is why the sync and async clients cannot drift apart.
 
 ```
-src/frappix/
+src/frappex_client/
   __init__.py        Public names. Anything not exported here is private.
   exceptions.py      Public exception tree.
   types.py           Public type aliases (Document, Filters).
@@ -114,12 +114,12 @@ on the sync or the async client and returns the result either way.
 They are skipped unless these variables are set:
 
 ```bash
-export FRAPPIX_TEST_URL=http://localhost:8000
-export FRAPPIX_TEST_API_KEY=...
-export FRAPPIX_TEST_API_SECRET=...
-export FRAPPIX_TEST_HOST_HEADER=mysite.localhost   # only for a multi-site bench
-export FRAPPIX_TEST_USERNAME=Administrator         # optional: password-login tests
-export FRAPPIX_TEST_PASSWORD=...                   # optional
+export FRAPPEX_TEST_URL=http://localhost:8000
+export FRAPPEX_TEST_API_KEY=...
+export FRAPPEX_TEST_API_SECRET=...
+export FRAPPEX_TEST_HOST_HEADER=mysite.localhost   # only for a multi-site bench
+export FRAPPEX_TEST_USERNAME=Administrator         # optional: password-login tests
+export FRAPPEX_TEST_PASSWORD=...                   # optional
 uv run pytest -m integration
 ```
 
@@ -132,7 +132,7 @@ What the tests write, and how it is removed:
 |---|---|
 | `ToDo` documents whose description holds a unique marker | The `marker` fixture, after each test |
 | `File` documents attached during upload tests | The test itself, in a `finally` block |
-| One custom DocType named `Frappix Test <id>` and its documents | The `doctype` fixture, at the end of the run |
+| One custom DocType named `Frappex Test <id>` and its documents | The `doctype` fixture, at the end of the run |
 
 The custom DocType is submittable and lets the caller choose document names,
 which is what makes the submit, cancel, rename and awkward-name tests
@@ -155,8 +155,8 @@ CI uses it for every supported Frappe version; you can use it locally with
 MariaDB on `127.0.0.1:3306` (root/root) and Redis on `127.0.0.1:6379`:
 
 ```bash
-scripts/ci/start_frappe_site.sh version-15 /tmp/frappix-bench
-set -a && . /tmp/frappix-bench/test.env && set +a
+scripts/ci/start_frappe_site.sh version-15 /tmp/frappex-bench
+set -a && . /tmp/frappex-bench/test.env && set +a
 uv run pytest tests/integration
 ```
 
@@ -199,6 +199,6 @@ Dependabot proposes updates weekly.
    to TestPyPI and then to PyPI, each with provenance attestations.
 
 One-time setup, on both test.pypi.org and pypi.org: add a trusted publisher
-for the project `frappix` with the repository `Padmapriyan27/frappix`, the
+for the project `frappex-client` with the repository `Padmapriyan27/frappex-client`, the
 workflow `release.yml`, and the environment `testpypi` or `pypi`. No upload
 token is stored anywhere.

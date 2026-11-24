@@ -3,8 +3,8 @@ requires = ["hatchling>=1.25"]
 build-backend = "hatchling.build"
 
 [project]
-name = "frappix"
-version = "0.1.0"
+name = "frappex-client"
+version = "0.1.1"
 description = "Typed sync and async REST client for Frappe and ERPNext sites."
 readme = "README.md"
 license = "MIT"
@@ -28,12 +28,12 @@ classifiers = [
 dependencies = ["httpx>=0.27,<1"]
 
 [project.urls]
-Homepage = "https://github.com/Padmapriyan27/frappix"
-Documentation = "https://frappix.zeal.ninja"
-Repository = "https://github.com/Padmapriyan27/frappix"
-Issues = "https://github.com/Padmapriyan27/frappix/issues"
-Changelog = "https://github.com/Padmapriyan27/frappix/blob/main/CHANGELOG.md"
-Security = "https://github.com/Padmapriyan27/frappix/security/policy"
+Homepage = "https://github.com/Padmapriyan27/frappex-client"
+Documentation = "https://frappex-client.zeal.ninja"
+Repository = "https://github.com/Padmapriyan27/frappex-client"
+Issues = "https://github.com/Padmapriyan27/frappex-client/issues"
+Changelog = "https://github.com/Padmapriyan27/frappex-client/blob/main/CHANGELOG.md"
+Security = "https://github.com/Padmapriyan27/frappex-client/security/policy"
 
 [dependency-groups]
 dev = [
@@ -45,7 +45,7 @@ dev = [
 ]
 
 [tool.hatch.build.targets.wheel]
-packages = ["src/frappix"]
+packages = ["src/frappex_client"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
@@ -55,7 +55,7 @@ markers = [
 ]
 
 [tool.coverage.run]
-source = ["frappix"]
+source = ["frappex_client"]
 branch = true
 
 [tool.coverage.report]

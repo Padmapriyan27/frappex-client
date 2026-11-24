@@ -4,7 +4,7 @@ Run with the Frappe environment's Python from the bench ``sites`` directory:
 
     python provision_site.py <site> <port> <env-file>
 
-Writes ``NAME=value`` lines for the FRAPPIX_TEST_* settings to ``env-file``.
+Writes ``NAME=value`` lines for the FRAPPEX_TEST_* settings to ``env-file``.
 """
 
 import os
@@ -25,11 +25,11 @@ def main(site: str, port: str, env_file: str) -> None:
     frappe.db.commit()
 
     settings = {
-        "FRAPPIX_TEST_URL": f"http://127.0.0.1:{port}",
-        "FRAPPIX_TEST_HOST_HEADER": site,
-        "FRAPPIX_TEST_API_KEY": user.api_key,
-        "FRAPPIX_TEST_API_SECRET": secret,
-        "FRAPPIX_TEST_USERNAME": "Administrator",
+        "FRAPPEX_TEST_URL": f"http://127.0.0.1:{port}",
+        "FRAPPEX_TEST_HOST_HEADER": site,
+        "FRAPPEX_TEST_API_KEY": user.api_key,
+        "FRAPPEX_TEST_API_SECRET": secret,
+        "FRAPPEX_TEST_USERNAME": "Administrator",
     }
     # These are credentials for a site that exists only for one test run. The
     # file is readable by the owner alone and is deleted with the runner.

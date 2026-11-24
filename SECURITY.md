@@ -3,7 +3,7 @@
 ## Reporting a vulnerability
 
 Please report security problems privately, not in a public issue, through
-[Report a vulnerability](https://github.com/Padmapriyan27/frappix/security/advisories/new)
+[Report a vulnerability](https://github.com/Padmapriyan27/frappex-client/security/advisories/new)
 on GitHub. Include the affected version, what an attacker can do, and steps to
 reproduce. You will get an acknowledgement, and a fix is released before the
 details are published.
@@ -12,7 +12,7 @@ details are published.
 
 Only the latest release receives security fixes.
 
-## What frappix guarantees
+## What frappex-client guarantees
 
 - Credentials are sent only to the host given in `base_url`: requests use
   site-relative paths and redirects are never followed.
@@ -25,7 +25,7 @@ Only the latest release receives security fixes.
 
 ## Out of scope
 
-frappix does not sanitise the data a site returns. Server messages and
+frappex-client does not sanitise the data a site returns. Server messages and
 document fields can contain HTML written by other users; escape them before
 rendering.
 

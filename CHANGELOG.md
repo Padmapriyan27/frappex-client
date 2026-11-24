@@ -6,9 +6,31 @@ All notable changes are recorded here. The format follows
 
 ## [Unreleased]
 
+## [0.1.1] - 2026-11-24
+
+### Changed
+
+- **Renamed to `frappex-client`.** Install with `pip install frappex-client`
+  and import `frappex_client`. The name `frappix` already belongs to an
+  established Frappe community project by another author (Frappe on Nix), so
+  this library no longer uses it. There are no other changes to the API.
+- The base exception is now `FrappexError` (was `FrappixError`).
+- Integration test settings are now `FRAPPEX_TEST_*` (were `FRAPPIX_TEST_*`).
+- Documentation moved to <https://frappex-client.zeal.ninja>.
+
+### Migrating from frappix 0.1.0
+
+```bash
+pip uninstall frappix
+pip install frappex-client
+```
+
+Then replace `frappix` with `frappex_client` in imports and `FrappixError`
+with `FrappexError`. The `frappix` 0.1.0 release on PyPI is yanked.
+
 ## [0.1.0] - 2026-11-24
 
-First release.
+First release, published under the name `frappix`.
 
 ### Added
 
@@ -30,5 +52,6 @@ First release.
 - `exc_type` is read from Frappe 14's `exception` field when `exc_type` is
   absent.
 
-[Unreleased]: https://github.com/Padmapriyan27/frappix/compare/v0.1.0...HEAD
-[0.1.0]: https://github.com/Padmapriyan27/frappix/releases/tag/v0.1.0
+[Unreleased]: https://github.com/Padmapriyan27/frappex-client/compare/v0.1.1...HEAD
+[0.1.1]: https://github.com/Padmapriyan27/frappex-client/compare/v0.1.0...v0.1.1
+[0.1.0]: https://github.com/Padmapriyan27/frappex-client/releases/tag/v0.1.0

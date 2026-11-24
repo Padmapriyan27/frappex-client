@@ -1,11 +1,11 @@
-# Contributing to frappix
+# Contributing to frappex-client
 
 Thank you for helping. Bug reports, fixes, tests and documentation are all
 welcome.
 
 ## Before you start
 
-- For a bug, open an issue with the frappix version, the Frappe version and a
+- For a bug, open an issue with the frappex-client version, the Frappe version and a
   minimal example.
 - For a new feature, open an issue first so the scope can be agreed before
   you write code.

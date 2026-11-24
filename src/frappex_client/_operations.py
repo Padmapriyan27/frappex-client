@@ -1,4 +1,4 @@
-"""Every API call frappix can make, described as data.
+"""Every API call frappex-client can make, described as data.
 
 Each function returns an :class:`Operation`: the request to send and a
 function that picks the result out of the decoded reply. Nothing here

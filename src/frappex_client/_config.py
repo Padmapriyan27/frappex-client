@@ -62,7 +62,7 @@ def validate_extra_headers(headers: Mapping[str, str] | None) -> dict[str, str]:
     checked: dict[str, str] = {}
     for name, value in (headers or {}).items():
         if name.lower() in _FORBIDDEN_HEADERS:
-            raise ConfigurationError(f"The {name!r} header is managed by frappix.")
+            raise ConfigurationError(f"The {name!r} header is managed by frappex-client.")
         if any(ch in f"{name}{value}" for ch in "\r\n\x00"):
             raise ConfigurationError(f"The {name!r} header contains control characters.")
         checked[name] = value

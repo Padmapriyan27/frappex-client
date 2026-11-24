@@ -11,7 +11,7 @@ from typing import Any
 import httpx
 import pytest
 
-from frappix import AsyncClient, Client, RetryPolicy, TokenAuth
+from frappex_client import AsyncClient, Client, RetryPolicy, TokenAuth
 
 URL = "https://erp.example.com"
 API_SECRET = "s3cr3t-value-never-shown"

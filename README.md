@@ -1,24 +1,24 @@
-# frappix
+# frappex-client
 
-[![CI](https://github.com/Padmapriyan27/frappix/actions/workflows/ci.yml/badge.svg)](https://github.com/Padmapriyan27/frappix/actions/workflows/ci.yml)
-[![Integration](https://github.com/Padmapriyan27/frappix/actions/workflows/integration.yml/badge.svg)](https://github.com/Padmapriyan27/frappix/actions/workflows/integration.yml)
-[![Security](https://github.com/Padmapriyan27/frappix/actions/workflows/security.yml/badge.svg)](https://github.com/Padmapriyan27/frappix/actions/workflows/security.yml)
-[![CodeQL](https://github.com/Padmapriyan27/frappix/actions/workflows/codeql.yml/badge.svg)](https://github.com/Padmapriyan27/frappix/actions/workflows/codeql.yml)
-[![OpenSSF Scorecard](https://api.scorecard.dev/projects/github.com/Padmapriyan27/frappix/badge)](https://scorecard.dev/viewer/?uri=github.com/Padmapriyan27/frappix)
+[![CI](https://github.com/Padmapriyan27/frappex-client/actions/workflows/ci.yml/badge.svg)](https://github.com/Padmapriyan27/frappex-client/actions/workflows/ci.yml)
+[![Integration](https://github.com/Padmapriyan27/frappex-client/actions/workflows/integration.yml/badge.svg)](https://github.com/Padmapriyan27/frappex-client/actions/workflows/integration.yml)
+[![Security](https://github.com/Padmapriyan27/frappex-client/actions/workflows/security.yml/badge.svg)](https://github.com/Padmapriyan27/frappex-client/actions/workflows/security.yml)
+[![CodeQL](https://github.com/Padmapriyan27/frappex-client/actions/workflows/codeql.yml/badge.svg)](https://github.com/Padmapriyan27/frappex-client/actions/workflows/codeql.yml)
+[![OpenSSF Scorecard](https://api.scorecard.dev/projects/github.com/Padmapriyan27/frappex-client/badge)](https://scorecard.dev/viewer/?uri=github.com/Padmapriyan27/frappex-client)
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 
 A typed REST client for [Frappe](https://frappe.io/framework) and ERPNext sites,
 with a blocking client and an `asyncio` client that share one implementation.
 
-**Documentation: <https://frappix.zeal.ninja>**: guides, recipes and the full API reference.
+**Documentation: <https://frappex-client.zeal.ninja>**: guides, recipes and the full API reference.
 
-frappix is an independent community project. It is not affiliated with or
+frappex-client is an independent community project. It is not affiliated with or
 endorsed by Frappe Technologies.
 
 ## What it is
 
 Every Frappe and ERPNext site has a REST API: any program can read and write
-its documents over HTTP. frappix is the Python package for the other end of
+its documents over HTTP. frappex-client is the Python package for the other end of
 that connection, the code that runs **outside** the site and talks to it.
 
 Instead of building URLs, encoding filters as JSON and decoding Frappe's error
@@ -51,14 +51,14 @@ customers = client.get_list(
 )
 ```
 
-## Why frappix
+## Why frappex-client
 
 Frappe publishes no maintained Python client on PyPI. The official
 `frappe-client` repository is archived and was never published, so most
 projects either install an unmaintained package or write raw HTTP calls and
 solve the same problems again:
 
-| Problem with hand-written calls | What frappix does |
+| Problem with hand-written calls | What frappex-client does |
 |---|---|
 | No `asyncio` support for FastAPI, bots and other async programs | `AsyncClient` with the same methods as `Client` |
 | The API returns 20 rows by default; reading everything needs a loop | `iter_list` walks every page in a stable order |
@@ -78,7 +78,7 @@ creates or updates ERPNext records:
 ```python
 import os
 
-from frappix import Client, TokenAuth
+from frappex_client import Client, TokenAuth
 
 erp = Client(os.environ["ERP_URL"], TokenAuth(os.environ["ERP_KEY"], os.environ["ERP_SECRET"]))
 
@@ -99,7 +99,7 @@ from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
 
-from frappix import AsyncClient, TokenAuth
+from frappex_client import AsyncClient, TokenAuth
 
 
 @asynccontextmanager
@@ -148,12 +148,12 @@ with open("invoice.pdf", "rb") as pdf:
 **Monitor a site.** A health check needs no credentials:
 
 ```python
-from frappix import Client, FrappixError
+from frappex_client import Client, FrappexError
 
 try:
     with Client("https://erp.example.com", timeout=5) as site:
         healthy = site.ping() == "pong"
-except FrappixError:
+except FrappexError:
     healthy = False
 ```
 
@@ -161,7 +161,7 @@ except FrappixError:
 
 - **Code running inside a Frappe app.** Use `frappe.get_doc` and the rest of
   the server-side API directly; there is no need to go over HTTP.
-- **Realtime events, reports or print formats.** frappix covers documents,
+- **Realtime events, reports or print formats.** frappex-client covers documents,
   whitelisted methods and files. Call a report or print method with `call`.
 - **The `/api/v2` routes.** Planned for a later release.
 
@@ -182,13 +182,13 @@ The integration suite runs in CI against Frappe v14, v15 and v16.
 ## Install
 
 ```bash
-pip install frappix
+pip install frappex-client
 ```
 
 ## Quick start
 
 ```python
-from frappix import Client, TokenAuth
+from frappex_client import Client, TokenAuth
 
 with Client("https://erp.example.com", TokenAuth("api_key", "api_secret")) as client:
     print(client.get_logged_user())
@@ -204,7 +204,7 @@ The async client is the same, awaited:
 
 ```python
 import asyncio
-from frappix import AsyncClient, TokenAuth
+from frappex_client import AsyncClient, TokenAuth
 
 
 async def main() -> None:
@@ -231,7 +231,7 @@ Without `auth`, the client acts as a guest. That is enough for a health check,
 public files and methods the site whitelists with `allow_guest`:
 
 ```python
-from frappix import Client
+from frappex_client import Client
 
 with Client("https://erp.example.com") as client:
     assert client.ping() == "pong"
@@ -260,7 +260,7 @@ with Client("https://erp.example.com") as client:
 ## Errors
 
 ```python
-from frappix import NotFoundError, PermissionDeniedError, ValidationError, FrappixError
+from frappex_client import NotFoundError, PermissionDeniedError, ValidationError, FrappexError
 
 try:
     client.get_doc("Customer", "CUST-0001")
@@ -268,7 +268,7 @@ except NotFoundError:
     ...
 except PermissionDeniedError:
     ...
-except FrappixError as error:  # everything frappix raises
+except FrappexError as error:  # everything frappex-client raises
     ...
 ```
 
@@ -306,7 +306,7 @@ See [SECURITY.md](SECURITY.md) to report a vulnerability.
 ## Retries and timeouts
 
 ```python
-from frappix import Client, RetryPolicy, TokenAuth
+from frappex_client import Client, RetryPolicy, TokenAuth
 
 client = Client(
     "https://erp.example.com",
@@ -333,15 +333,15 @@ these are set. They remove everything they create. See the
 settings and the permissions the API user needs:
 
 ```bash
-export FRAPPIX_TEST_URL=http://localhost:8000
-export FRAPPIX_TEST_API_KEY=...
-export FRAPPIX_TEST_API_SECRET=...
+export FRAPPEX_TEST_URL=http://localhost:8000
+export FRAPPEX_TEST_API_KEY=...
+export FRAPPEX_TEST_API_SECRET=...
 uv run pytest -m integration
 ```
 
 ## Documentation
 
-- [Documentation website](https://frappix.zeal.ninja): guides, recipes and the API reference
+- [Documentation website](https://frappex-client.zeal.ninja): guides, recipes and the API reference
 - [Developer guide](docs/DEVELOPMENT.md): architecture, adding a call, tests, releasing
 - [Product requirements](docs/PRD.md): goals, scope and requirements
 - [Security policy](SECURITY.md)

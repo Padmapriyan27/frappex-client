@@ -10,7 +10,7 @@ from typing import Any
 import httpx
 import pytest
 
-from frappix import (
+from frappex_client import (
     AsyncClient,
     Client,
     ConfigurationError,
@@ -40,7 +40,7 @@ class TestRequests:
         assert site.run(lambda c: c.get_logged_user()) == "a@example.com"
         request = site.requests[0]
         assert request.headers["authorization"] == f"token key:{API_SECRET}"
-        assert request.headers["user-agent"].startswith("frappix/")
+        assert request.headers["user-agent"].startswith("frappex-client/")
         assert raw_path(request) == "/api/method/frappe.auth.get_logged_user"
 
     def test_get_doc_encodes_the_name_into_one_segment(self, site: Site) -> None:

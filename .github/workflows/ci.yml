@@ -62,4 +62,4 @@ jobs:
         run: |
           uv venv /tmp/wheel-check
           uv pip install --python /tmp/wheel-check/bin/python dist/*.whl
-          cd /tmp && /tmp/wheel-check/bin/python -c "import frappix; print(frappix.__all__)"
+          cd /tmp && /tmp/wheel-check/bin/python -c "import frappex_client; print(frappex_client.__all__)"

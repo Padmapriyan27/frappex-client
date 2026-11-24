@@ -1,8 +1,8 @@
-"""frappix: a typed sync and async REST client for Frappe and ERPNext sites.
+"""frappex-client: a typed sync and async REST client for Frappe and ERPNext sites.
 
 Quick start::
 
-    from frappix import Client, TokenAuth
+    from frappex_client import Client, TokenAuth
 
     with Client("https://erp.example.com", TokenAuth(api_key, api_secret)) as client:
         open_todos = client.get_list("ToDo", filters={"status": "Open"})
@@ -19,7 +19,7 @@ from .exceptions import (
     AuthenticationError,
     ConfigurationError,
     ConflictError,
-    FrappixError,
+    FrappexError,
     NotFoundError,
     PermissionDeniedError,
     RateLimitError,
@@ -43,7 +43,7 @@ __all__ = [
     "ConflictError",
     "Document",
     "Filters",
-    "FrappixError",
+    "FrappexError",
     "NotFoundError",
     "PasswordAuth",
     "PermissionDeniedError",

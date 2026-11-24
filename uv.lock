@@ -382,8 +382,8 @@ wheels = [
 ]
 
 [[package]]
-name = "frappix"
-version = "0.1.0"
+name = "frappex-client"
+version = "0.1.1"
 source = { editable = "." }
 dependencies = [
     { name = "httpx" },

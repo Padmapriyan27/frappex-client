@@ -6,7 +6,7 @@ import json
 
 import pytest
 
-from frappix import (
+from frappex_client import (
     APIError,
     AuthenticationError,
     BearerAuth,
@@ -23,8 +23,8 @@ from frappix import (
     UnexpectedResponseError,
     ValidationError,
 )
-from frappix._config import normalise_base_url, validate_extra_headers
-from frappix._protocol import RawResponse, decode, file_path, method_path, resource_path
+from frappex_client._config import normalise_base_url, validate_extra_headers
+from frappex_client._protocol import RawResponse, decode, file_path, method_path, resource_path
 
 
 def raw(status: int, body: object = None, headers: dict[str, str] | None = None) -> RawResponse:
