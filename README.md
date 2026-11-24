@@ -21,6 +21,8 @@ Every Frappe and ERPNext site has a REST API: any program can read and write
 its documents over HTTP. frappex-client is the Python package for the other end of
 that connection, the code that runs **outside** the site and talks to it.
 
+Use it from any Python application (a Flask, FastAPI or Django web app, a script, a worker or a bot) to work with a Frappe site and every app installed on it, including ERPNext, HRMS and your own custom apps.
+
 Instead of building URLs, encoding filters as JSON and decoding Frappe's error
 format by hand:
 
