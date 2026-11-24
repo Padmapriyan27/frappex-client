@@ -13,8 +13,160 @@ with a blocking client and an `asyncio` client that share one implementation.
 frappix is an independent community project. It is not affiliated with or
 endorsed by Frappe Technologies.
 
+## What it is
+
+Every Frappe and ERPNext site has a REST API: any program can read and write
+its documents over HTTP. frappix is the Python package for the other end of
+that connection, the code that runs **outside** the site and talks to it.
+
+Instead of building URLs, encoding filters as JSON and decoding Frappe's error
+format by hand:
+
+```python
+import json
+
+import requests
+
+response = requests.get(
+    "https://erp.example.com/api/resource/Customer",
+    headers={"Authorization": f"token {key}:{secret}"},
+    params={
+        "filters": json.dumps({"territory": "India"}),
+        "fields": json.dumps(["name", "customer_name"]),
+        "limit_page_length": 20,
+    },
+    timeout=30,
+)
+response.raise_for_status()
+customers = response.json()["data"]
+```
+
+you write:
+
+```python
+customers = client.get_list(
+    "Customer", filters={"territory": "India"}, fields=["name", "customer_name"]
+)
+```
+
+## Why frappix
+
+Frappe publishes no maintained Python client on PyPI. The official
+`frappe-client` repository is archived and was never published, so most
+projects either install an unmaintained package or write raw HTTP calls and
+solve the same problems again:
+
+| Problem with hand-written calls | What frappix does |
+|---|---|
+| No `asyncio` support for FastAPI, bots and other async programs | `AsyncClient` with the same methods as `Client` |
+| The API returns 20 rows by default; reading everything needs a loop | `iter_list` walks every page in a stable order |
+| Errors arrive as Frappe's own JSON and must be decoded | A typed exception per failure: `NotFoundError`, `PermissionDeniedError`, `ValidationError` and more |
+| A retried insert can create a duplicate document | Only safe requests are retried; writes never are |
+| TLS checks get switched off and keys end up in logs | HTTPS only, certificate checks always on, secrets masked everywhere |
+| No editor help | Fully typed, checked with `mypy --strict` |
+
+It has one dependency (`httpx`) and is tested on every change against real
+Frappe 14, 15 and 16 sites.
+
+## Use cases
+
+**Sync another system into ERPNext.** A webshop, CRM or form backend that
+creates or updates ERPNext records:
+
+```python
+import os
+
+from frappix import Client, TokenAuth
+
+erp = Client(os.environ["ERP_URL"], TokenAuth(os.environ["ERP_KEY"], os.environ["ERP_SECRET"]))
+
+
+def upsert_customer(email: str, values: dict[str, str]) -> None:
+    existing = erp.get_value("Customer", "name", {"email_id": email})
+    if existing:
+        erp.update("Customer", existing["name"], values)
+    else:
+        erp.insert("Customer", {"email_id": email, **values})
+```
+
+**Serve ERP data from an async web app.** One shared `AsyncClient` in a
+FastAPI service:
+
+```python
+from contextlib import asynccontextmanager
+
+from fastapi import FastAPI
+
+from frappix import AsyncClient, TokenAuth
+
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    async with AsyncClient("https://erp.example.com", TokenAuth("key", "secret")) as erp:
+        app.state.erp = erp
+        yield
+
+
+app = FastAPI(lifespan=lifespan)
+
+
+@app.get("/orders/{name}")
+async def order(name: str):
+    return await app.state.erp.get_doc("Sales Order", name)
+```
+
+**Export data for reports and pipelines.** Every row, without writing a
+pagination loop:
+
+```python
+import csv
+
+fields = ["name", "customer_name", "territory"]
+with open("customers.csv", "w", newline="") as out:
+    writer = csv.DictWriter(out, fieldnames=fields)
+    writer.writeheader()
+    writer.writerows(erp.iter_list("Customer", fields=fields))
+```
+
+**Call your own app's API.** Methods you whitelist in a custom Frappe app,
+from scripts, bots or other services:
+
+```python
+summary = erp.call("myapp.api.monthly_summary", {"year": 2026}, http_method="GET")
+```
+
+**Attach files to documents.** Invoices, scans and reports, private by
+default:
+
+```python
+with open("invoice.pdf", "rb") as pdf:
+    erp.upload_file("invoice.pdf", pdf.read(), doctype="Sales Invoice", docname="SINV-0001")
+```
+
+**Monitor a site.** A health check needs no credentials:
+
+```python
+from frappix import Client, FrappixError
+
+try:
+    with Client("https://erp.example.com", timeout=5) as site:
+        healthy = site.ping() == "pong"
+except FrappixError:
+    healthy = False
+```
+
+### When not to use it
+
+- **Code running inside a Frappe app.** Use `frappe.get_doc` and the rest of
+  the server-side API directly; there is no need to go over HTTP.
+- **Realtime events, reports or print formats.** frappix covers documents,
+  whitelisted methods and files. Call a report or print method with `call`.
+- **The `/api/v2` routes.** Planned for a later release.
+
+## Features
+
 - Sync (`Client`) and async (`AsyncClient`) with identical methods
-- API key, OAuth bearer token and username/password authentication
+- API key, OAuth bearer token, username/password, or guest access
 - Automatic pagination with `iter_list`
 - A typed exception for each kind of failure
 - Retries only where repeating a request is safe
