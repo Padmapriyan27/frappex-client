@@ -29,7 +29,7 @@ dependencies = ["httpx>=0.27,<1"]
 
 [project.urls]
 Homepage = "https://github.com/Padmapriyan27/frappix"
-Documentation = "https://github.com/Padmapriyan27/frappix#readme"
+Documentation = "https://frappix.zeal.ninja"
 Repository = "https://github.com/Padmapriyan27/frappix"
 Issues = "https://github.com/Padmapriyan27/frappix/issues"
 Changelog = "https://github.com/Padmapriyan27/frappix/blob/main/CHANGELOG.md"

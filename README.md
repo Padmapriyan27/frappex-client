@@ -10,6 +10,8 @@
 A typed REST client for [Frappe](https://frappe.io/framework) and ERPNext sites,
 with a blocking client and an `asyncio` client that share one implementation.
 
+**Documentation: <https://frappix.zeal.ninja>**: guides, recipes and the full API reference.
+
 frappix is an independent community project. It is not affiliated with or
 endorsed by Frappe Technologies.
 
@@ -339,6 +341,7 @@ uv run pytest -m integration
 
 ## Documentation
 
+- [Documentation website](https://frappix.zeal.ninja): guides, recipes and the API reference
 - [Developer guide](docs/DEVELOPMENT.md): architecture, adding a call, tests, releasing
 - [Product requirements](docs/PRD.md): goals, scope and requirements
 - [Security policy](SECURITY.md)
