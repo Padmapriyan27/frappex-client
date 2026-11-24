@@ -160,9 +160,16 @@ except FrappexError:
 ### When not to use it
 
 - **Code running inside a Frappe app.** Use `frappe.get_doc` and the rest of
-  the server-side API directly; there is no need to go over HTTP.
-- **Realtime events, reports or print formats.** frappex-client covers documents,
-  whitelisted methods and files. Call a report or print method with `call`.
+  the server-side API directly. Calling your own site over HTTP is slower,
+  needs an API key, and saves changes outside your current transaction.
+- **Realtime events.** frappex-client does not speak Socket.IO.
+- **Print formats (PDFs).** Not supported yet: Frappe's PDF endpoint returns a
+  file rather than JSON, which `call` cannot read, and `download` only fetches
+  stored files. Planned for a later release.
+- **Reports** have no dedicated helper yet. Query and Script Reports run through
+  `call("frappe.desk.query_report.run", {"report_name": ..., "filters": {...}}, http_method="GET")`;
+  reports set to run in the background (prepared reports) return a status
+  instead of rows.
 - **The `/api/v2` routes.** Planned for a later release.
 
 ## Features
