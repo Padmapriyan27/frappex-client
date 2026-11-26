@@ -66,6 +66,10 @@ jobs:
           sudo apt-get update --quiet
           sudo apt-get install --yes --quiet --no-install-recommends "$RUNNER_TEMP/wkhtmltox.deb"
           wkhtmltopdf --version
+      # wkhtmltopdf fetches the print view's assets by the site's own host
+      # name; Frappe 14 and 15 fail the PDF when that name does not resolve.
+      - name: Resolve the test site's host name
+        run: echo "127.0.0.1 frappex.test" | sudo tee --append /etc/hosts
       - name: Start a Frappe site
         env:
           FRAPPE_BRANCH: ${{ matrix.frappe }}
