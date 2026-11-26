@@ -148,6 +148,14 @@ with open("customers.csv", "w", newline="") as out:
     writer.writerows(erp.iter_list("Customer", fields=fields))
 ```
 
+**Pull report data into another tool.** Any Query or Script Report, rows
+keyed by field name:
+
+```python
+report = erp.run_report("Accounts Receivable", {"company": "Acme", "report_date": "2026-11-30"})
+overdue = [row for row in report.rows if row["outstanding_amount"] > 0]
+```
+
 **Call your own app's API.** Methods you whitelist in a custom Frappe app,
 from scripts, bots or other services:
 
@@ -184,10 +192,9 @@ except FrappexError:
 - **Print formats (PDFs).** Not supported yet: Frappe's PDF endpoint returns a
   file rather than JSON, which `call` cannot read, and `download` only fetches
   stored files. Planned for a later release.
-- **Reports** have no dedicated helper yet. Query and Script Reports run through
-  `call("frappe.desk.query_report.run", {"report_name": ..., "filters": {...}}, http_method="GET")`;
-  reports set to run in the background (prepared reports) return a status
-  instead of rows.
+- **Reports that run in the background** (prepared reports). `run_report`
+  raises `PreparedReportError` for them instead of returning stale or empty
+  rows.
 - **The `/api/v2` routes.** Planned for a later release.
 
 ## Features
@@ -196,6 +203,7 @@ except FrappexError:
 - API key, OAuth bearer token, username/password, or guest access
 - Automatic pagination with `iter_list`
 - Bulk insert and update in batches, with clear partial-failure reporting
+- Query, Script and Custom Reports as columns and rows keyed by field name
 - A typed exception for each kind of failure
 - Retries only where repeating a request is safe
 - Secure defaults: HTTPS only, certificate checks always on, no redirects
@@ -282,6 +290,7 @@ with Client("https://erp.example.com") as client:
 | `get_count(doctype, filters)` | Count matching documents. |
 | `get_value(doctype, fieldname, filters)` / `set_value(doctype, name, values)` | Read or set fields. |
 | `call(method, params, http_method=)` | Call a whitelisted method. |
+| `run_report(report_name, filters)` | Run a Query, Script or Custom Report; returns columns, rows and the totals row. |
 | `upload_file(filename, content, is_private=, doctype=, docname=)` | Upload a file. |
 | `download(file_url)` / `download_to(file_url, target)` | Fetch a file. |
 

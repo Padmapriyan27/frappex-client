@@ -19,6 +19,7 @@ __all__ = [
     "FrappexError",
     "NotFoundError",
     "PermissionDeniedError",
+    "PreparedReportError",
     "RateLimitError",
     "RequestTimeoutError",
     "ResponseTooLargeError",
@@ -60,6 +61,27 @@ class UnexpectedResponseError(FrappexError):
         """Store the HTTP status alongside the message."""
         super().__init__(message)
         self.status_code = status_code
+
+
+class PreparedReportError(FrappexError):
+    """The report is set to run in the background (a *prepared report*).
+
+    Frappe answers such reports with the state of a background job instead of
+    rows. Run the report on the site, or ask an administrator to switch off
+    *Prepared Report* for it.
+
+    Attributes:
+        report_name: The report that was requested.
+    """
+
+    def __init__(self, report_name: str) -> None:
+        """Explain why the report returned no rows."""
+        super().__init__(
+            f"The report {report_name!r} runs in the background as a prepared report, "
+            "so the site returned no rows. Run it on the site, or switch off "
+            "'Prepared Report' for it."
+        )
+        self.report_name = report_name
 
 
 class BulkOperationError(FrappexError):

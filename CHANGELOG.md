@@ -19,6 +19,14 @@ All notable changes are recorded here. The format follows
   names already saved (`completed`), where to resume (`failed_at`) and the
   original exception (`error`). Like other writes, a batch is not retried
   after a network or server error.
+- `run_report(report_name, filters=None)` runs a Query, Script or Custom
+  Report through `frappe.desk.query_report.run` and returns a `ReportResult`:
+  normalised `columns`, `rows` keyed by field name (old `"Label:Type/Options"`
+  columns and list rows included), the `total_row` kept apart, the report's
+  `message` and the `raw` reply. Filters you pass always apply, even to a
+  Custom Report with saved filters.
+- `PreparedReportError`, raised when a report is set to run in the
+  background, instead of returning a job status as if it were data.
 
 ## [0.1.1] - 2026-11-24
 

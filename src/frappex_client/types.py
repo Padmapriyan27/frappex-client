@@ -6,7 +6,7 @@ from collections.abc import Mapping, Sequence
 from dataclasses import dataclass, field
 from typing import Any, Literal, TypeAlias
 
-__all__ = ["BulkUpdateFailure", "Document", "Filters", "HTTPMethod"]
+__all__ = ["BulkUpdateFailure", "Document", "Filters", "HTTPMethod", "ReportResult"]
 
 Document: TypeAlias = dict[str, Any]
 """A Frappe document as returned by the REST API."""
@@ -33,3 +33,26 @@ class BulkUpdateFailure:
     name: str
     message: str
     traceback: str = field(default="", repr=False)
+
+
+@dataclass(frozen=True)
+class ReportResult:
+    """The output of a Query, Script or Custom Report.
+
+    Attributes:
+        columns: One mapping per column with at least ``fieldname`` and
+            ``label``, and ``fieldtype``, ``options`` or ``width`` when the
+            report defines them.
+        rows: One mapping per row, keyed by column ``fieldname``.
+        total_row: The totals row Frappe adds when the report has
+            *Add Total Row* switched on, kept out of ``rows``; otherwise ``None``.
+        message: A note the report attached for the reader, if any.
+        raw: The complete reply, for anything else such as ``chart`` or
+            ``report_summary``.
+    """
+
+    columns: list[Document]
+    rows: list[Document]
+    total_row: Document | None = None
+    message: Any = None
+    raw: Document = field(default_factory=dict, repr=False)
