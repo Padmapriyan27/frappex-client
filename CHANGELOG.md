@@ -36,7 +36,8 @@ All notable changes are recorded here. The format follows
   background (a prepared report), it returns the rows of the last completed
   run with the same filters and sets `prepared`.
 - `PreparedReportError`, raised when a prepared report has no completed run
-  for the filters, or its last run failed (the reason is in `error`),
+  for the filters, or its last run failed (on Frappe 16 the reason is in
+  `error`),
   instead of returning a job status as if it were data.
 - `download_pdf(doctype, name, ...)` and `download_pdf_to(doctype, name,
   target, ...)` render a document's print format as a PDF through

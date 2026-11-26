@@ -74,8 +74,9 @@ class PreparedReportError(FrappexError):
 
     Attributes:
         report_name: The report that was requested.
-        error: The site's message when the last background run failed;
-            otherwise ``None``.
+        error: The site's message when the last background run failed.
+            Only Frappe 16 reports it; on Frappe 15 a failed run looks like
+            no completed run, and ``error`` is ``None``.
     """
 
     def __init__(self, report_name: str, *, error: str | None = None) -> None:
