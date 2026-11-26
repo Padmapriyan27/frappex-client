@@ -50,16 +50,11 @@ frappe() {
 admin_password="$("$work/env/bin/python" -c 'import secrets; print(secrets.token_urlsafe(18))')"
 
 # The database runs in a container, so the site user must be allowed to
-# connect from any host. The option was renamed after version-14.
-if frappe new-site --help | grep -q -- "--mariadb-user-host-login-scope"; then
-    host_scope=(--mariadb-user-host-login-scope=%)
-else
-    host_scope=(--no-mariadb-socket)
-fi
+# connect from any host.
 
 frappe new-site "$site" \
     --db-root-username root --db-root-password root \
-    --admin-password "$admin_password" "${host_scope[@]}" > "$work/logs/new-site.log" 2>&1 \
+    --admin-password "$admin_password" --mariadb-user-host-login-scope=% > "$work/logs/new-site.log" 2>&1 \
     || { tail -n 60 "$work/logs/new-site.log"; exit 1; }
 
 env_file="$work/test.env"

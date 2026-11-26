@@ -125,8 +125,9 @@ class APIError(FrappexError):
 
     Attributes:
         status_code: HTTP status of the response.
-        exc_type: Name of the server-side exception class, when reported.
-            Frappe 14 does not always report it, so it can be ``None``.
+        exc_type: Name of the server-side exception class, such as
+            ``"MandatoryError"``; ``None`` when the reply does not name one,
+            for example an error page from a proxy.
         server_messages: Human-readable messages the server attached.
         traceback: Server traceback, when the site exposes one. It is kept
             off ``str(error)`` on purpose so it does not leak into logs.

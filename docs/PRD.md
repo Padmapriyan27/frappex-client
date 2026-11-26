@@ -109,8 +109,9 @@ Each of S1–S10 has at least one automated test.
 ### 6.3 Quality
 
 - Python 3.10 to 3.14.
-- Frappe v14, v15 and v16 on the `/api/resource` and `/api/method` routes,
-  verified by the integration suite in CI.
+- Frappe v15 and v16 on the `/api/resource` and `/api/method` routes,
+  verified by the integration suite in CI. Frappe v14 was supported up to
+  0.1.1.
 - `mypy --strict` and `ruff` clean; public names documented.
 - Unit tests run without a network. Integration tests run against a real
   site and touch only data they create.
@@ -144,7 +145,7 @@ No numeric adoption target has been set yet.
 | Integration tests written | Done |
 | Integration tests run against Frappe v15 (15.112.0) | Done, 2026-11-23 |
 | Integration tests run against Frappe v16 (16.0.0-dev) | Done, 2026-11-23 |
-| Integration tests in CI on Frappe v14, v15 and v16 | Workflow added; see the Integration badge for the current state |
+| Integration tests in CI on Frappe v15 and v16 | Workflow added; see the Integration badge for the current state |
 | Security scanning in CI | Done |
 | Public repository on GitHub (canonical) and GitLab (mirror) | Done |
 | PyPI project and Trusted Publisher configured | Pending decision |

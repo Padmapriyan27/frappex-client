@@ -73,7 +73,7 @@ solve the same problems again:
 | No editor help | Fully typed, checked with `mypy --strict` |
 
 It has one dependency (`httpx`) and is tested on every change against real
-Frappe 14, 15 and 16 sites.
+Frappe 15 and 16 sites.
 
 ## Use cases
 
@@ -210,8 +210,9 @@ except FrappexError:
   followed, credentials never printed
 - Fully type-annotated; one dependency (`httpx`)
 
-Requires Python 3.10+. Uses the `/api/resource` and `/api/method` routes.
-The integration suite runs in CI against Frappe v14, v15 and v16.
+Requires Python 3.10+ for your code. Supports Frappe 15 and 16 sites
+through the `/api/resource` and `/api/method` routes; the integration suite
+runs in CI against both on every change. Frappe 14 is no longer supported.
 
 ## Install
 
@@ -324,8 +325,10 @@ except FrappexError as error:  # everything frappex-client raises
 | `ConfigurationError` | An unsafe or malformed argument |
 
 `APIError` subclasses carry `status_code`, `exc_type`, `server_messages` and
-`traceback`. Frappe 14 does not always report the exception type, so
-`exc_type` can be `None` there; rely on the exception class instead. The server traceback is deliberately left out of `str(error)`.
+`traceback`. `exc_type` is `None` when the reply does not name the
+server-side exception, for example an error page from a proxy; rely on the
+exception class for control flow. The server traceback is deliberately left
+out of `str(error)`.
 
 ## Security behaviour
 

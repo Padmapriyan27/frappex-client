@@ -168,7 +168,7 @@ checks.
 | Workflow | What it does |
 |---|---|
 | `ci.yml` | Lint, types, unit tests with coverage (minimum 90%) on Python 3.10 to 3.14; oldest supported `httpx`; package build and metadata checks |
-| `integration.yml` | Integration suite against real Frappe v14, v15 and v16 sites |
+| `integration.yml` | Integration suite against real Frappe v15 and v16 sites |
 | `security.yml` | Dependency audit, Gitleaks, workflow audit (zizmor), dependency review on pull requests; also weekly |
 | `codeql.yml` | CodeQL static analysis |
 | `scorecard.yml` | OpenSSF Scorecard |

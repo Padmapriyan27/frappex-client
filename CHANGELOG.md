@@ -6,6 +6,13 @@ All notable changes are recorded here. The format follows
 
 ## [Unreleased]
 
+### Removed
+
+- **Frappe 14 is no longer supported.** frappex-client now supports and
+  tests the two current major versions, Frappe 15 and 16, on every change.
+  Sites on Frappe 14 can keep using 0.1.1. Your own code can still run on
+  Python 3.10 or later.
+
 ### Added
 
 - `insert_many(doctype, docs, batch_size=200)` creates many documents in
