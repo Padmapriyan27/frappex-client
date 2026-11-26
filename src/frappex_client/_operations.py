@@ -430,8 +430,12 @@ def run_report(report_name: str, filters: Mapping[str, Any] | None) -> Operation
         result = _message(payload)
         if not isinstance(result, dict):
             raise UnexpectedResponseError("The reply does not contain a report.", status_code=200)
-        if result.get("prepared_report"):
-            raise PreparedReportError(report_name)
+        prepared = bool(result.get("prepared_report"))
+        if prepared and "result" not in result:
+            # A prepared report carries rows only once a background run for
+            # these filters has completed.
+            error = result.get("error")
+            raise PreparedReportError(report_name, error=str(error) if error else None)
         raw_columns = result.get("columns") or []
         raw_rows = result.get("result") or []
         if not isinstance(raw_columns, list) or not isinstance(raw_rows, list):
@@ -446,6 +450,7 @@ def run_report(report_name: str, filters: Mapping[str, Any] | None) -> Operation
             rows=rows,
             total_row=total_row,
             message=result.get("message"),
+            prepared=prepared,
             raw=result,
         )
 

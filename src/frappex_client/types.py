@@ -20,7 +20,12 @@ HTTPMethod: TypeAlias = Literal["GET", "POST", "PUT", "DELETE"]
 
 @dataclass(frozen=True)
 class BulkUpdateFailure:
-    """One document that :meth:`~frappex_client.Client.bulk_update` could not save.
+    """One document for which :meth:`~frappex_client.Client.bulk_update` reported an error.
+
+    Frappe raised while saving this document. The save is not rolled back on
+    its own, so changes written before the error (for example before an
+    ``on_update`` hook failed) can still be committed. Read the document
+    again before deciding what to resend.
 
     Attributes:
         name: Name of the document.
@@ -47,6 +52,10 @@ class ReportResult:
         total_row: The totals row Frappe adds when the report has
             *Add Total Row* switched on, kept out of ``rows``; otherwise ``None``.
         message: A note the report attached for the reader, if any.
+        prepared: ``True`` when the report runs in the background (a
+            *prepared report*) and the rows come from its last completed run
+            with the same filters. They reflect the data at the time that run
+            finished, which ``raw["doc"]`` describes.
         raw: The complete reply, for anything else such as ``chart`` or
             ``report_summary``.
     """
@@ -55,4 +64,5 @@ class ReportResult:
     rows: list[Document]
     total_row: Document | None = None
     message: Any = None
+    prepared: bool = False
     raw: Document = field(default_factory=dict, repr=False)

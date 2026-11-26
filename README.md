@@ -196,9 +196,10 @@ except FrappexError:
   the server-side API directly. Calling your own site over HTTP is slower,
   needs an API key, and saves changes outside your current transaction.
 - **Realtime events.** frappex-client does not speak Socket.IO.
-- **Reports that run in the background** (prepared reports). `run_report`
-  raises `PreparedReportError` for them instead of returning stale or empty
-  rows.
+- **Generating background reports.** For a report that runs in the
+  background (a prepared report), `run_report` returns the rows of its last
+  completed run with the same filters, or raises `PreparedReportError` when
+  there is none. It does not start or wait for a run.
 - **The `/api/v2` routes.** Planned for a later release.
 
 ## Features
@@ -290,7 +291,7 @@ with Client("https://erp.example.com") as client:
 | `update(doctype, name, values)` | Change fields. |
 | `delete(doctype, name)` | Delete a document. |
 | `insert_many(doctype, docs, batch_size=)` | Create many documents, up to 200 per request; returns their names. |
-| `bulk_update(doctype, {name: values}, batch_size=)` | Change many documents; returns the ones that could not be saved. |
+| `bulk_update(doctype, {name: values}, batch_size=)` | Change many documents; returns the ones the site reported an error for. |
 | `submit(doctype, name)` / `cancel(doctype, name)` | Submit or cancel. |
 | `rename(doctype, old_name, new_name, merge=)` | Rename; returns the new name. |
 | `get_count(doctype, filters)` | Count matching documents. |

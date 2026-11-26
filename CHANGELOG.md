@@ -20,8 +20,9 @@ All notable changes are recorded here. The format follows
   completely or not at all, and the names come back in the order given.
 - `bulk_update(doctype, {name: values}, batch_size=200)` changes many
   documents through `frappe.client.bulk_update`. Frappe saves each document
-  on its own; the ones it could not save are returned as
-  `BulkUpdateFailure` items with the server's message.
+  separately; the ones it reported an error for are returned as
+  `BulkUpdateFailure` items with the server's message. Frappe does not roll
+  such a document back, so changes written before the error can remain.
 - `BulkOperationError`, raised when a whole batch fails. It records the
   names already saved (`completed`), where to resume (`failed_at`) and the
   original exception (`error`). Like other writes, a batch is not retried
@@ -31,9 +32,12 @@ All notable changes are recorded here. The format follows
   normalised `columns`, `rows` keyed by field name (old `"Label:Type/Options"`
   columns and list rows included), the `total_row` kept apart, the report's
   `message` and the `raw` reply. Filters you pass always apply, even to a
-  Custom Report with saved filters.
-- `PreparedReportError`, raised when a report is set to run in the
-  background, instead of returning a job status as if it were data.
+  Custom Report with saved filters. For a report that runs in the
+  background (a prepared report), it returns the rows of the last completed
+  run with the same filters and sets `prepared`.
+- `PreparedReportError`, raised when a prepared report has no completed run
+  for the filters, or its last run failed (the reason is in `error`),
+  instead of returning a job status as if it were data.
 - `download_pdf(doctype, name, ...)` and `download_pdf_to(doctype, name,
   target, ...)` render a document's print format as a PDF through
   `frappe.utils.print_format.download_pdf`, with optional `print_format`,

@@ -64,24 +64,33 @@ class UnexpectedResponseError(FrappexError):
 
 
 class PreparedReportError(FrappexError):
-    """The report is set to run in the background (a *prepared report*).
+    """A background report (a *prepared report*) has no completed run to read.
 
-    Frappe answers such reports with the state of a background job instead of
-    rows. Run the report on the site, or ask an administrator to switch off
-    *Prepared Report* for it.
+    Frappe answers a prepared report with the rows of its last completed
+    background run for the same filters and user. When there is none yet, or
+    the last run failed, it sends no rows. Generate the report on the site
+    (or through ``make_prepared_report``) and read it again once it has
+    finished, or ask an administrator to switch off *Prepared Report* for it.
 
     Attributes:
         report_name: The report that was requested.
+        error: The site's message when the last background run failed;
+            otherwise ``None``.
     """
 
-    def __init__(self, report_name: str) -> None:
+    def __init__(self, report_name: str, *, error: str | None = None) -> None:
         """Explain why the report returned no rows."""
+        reason = (
+            f"its last background run failed: {error}"
+            if error
+            else "it has no completed background run for these filters yet"
+        )
         super().__init__(
-            f"The report {report_name!r} runs in the background as a prepared report, "
-            "so the site returned no rows. Run it on the site, or switch off "
-            "'Prepared Report' for it."
+            f"The report {report_name!r} is a prepared report and {reason}. Generate it "
+            "on the site and read it again once it has finished."
         )
         self.report_name = report_name
+        self.error = error
 
 
 class BulkOperationError(FrappexError):

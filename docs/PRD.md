@@ -56,7 +56,7 @@ calls by hand. In both cases they solve the same problems again each time:
 - Running inside a Frappe site (server-side code already has `frappe.*`).
 - A typed model per DocType, or code generation from DocType definitions.
 - The `/api/v2` routes. Planned for a later release.
-- Socket.IO / realtime events, and reports that run in the background (prepared reports).
+- Socket.IO / realtime events, and starting or waiting for background (prepared) report runs.
 - A command-line tool or an MCP server.
 - Managing Frappe sites, benches or users.
 
