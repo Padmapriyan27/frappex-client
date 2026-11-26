@@ -384,10 +384,13 @@ class AsyncClient(ClientCore):
     ) -> list[BulkUpdateFailure]:
         """Change fields on many documents of one DocType.
 
-        Frappe saves each document on its own, so one invalid document does
-        not stop the others. Updates are sent in batches of ``batch_size``;
-        like every write, a batch is not retried after a network or server
-        error.
+        Frappe saves each document separately, so one invalid document does
+        not stop the others. A document that raised is reported, but Frappe
+        does not roll it back: changes written before the error, for example
+        before an ``on_update`` hook failed, can still be committed.
+
+        Updates are sent in batches of ``batch_size``; like every write, a
+        batch is not retried after a network or server error.
 
         Args:
             doctype: DocType of every document.
@@ -396,7 +399,8 @@ class AsyncClient(ClientCore):
             batch_size: Documents per request, from 1 to 200.
 
         Returns:
-            The documents that could not be saved; empty when all were.
+            The documents for which the site reported an error; empty when
+            every document was saved.
 
         Raises:
             BulkOperationError: A whole batch failed, for example because of a
@@ -448,11 +452,13 @@ class AsyncClient(ClientCore):
 
         Returns:
             The columns, the rows keyed by column field name, and the totals
-            row when the report adds one.
+            row when the report adds one. For a report that runs in the
+            background, the rows of its last completed run with these filters,
+            with ``prepared`` set.
 
         Raises:
-            PreparedReportError: The report runs in the background, so the
-                site returned no rows.
+            PreparedReportError: The report runs in the background and has no
+                completed run for these filters, or its last run failed.
         """
         return await self._execute(ops.run_report(report_name, filters))
 

@@ -83,6 +83,10 @@ echo "FRAPPEX_TEST_PASSWORD=$admin_password" >> "$env_file"
 (cd "$work/sites" && nohup "$work/env/bin/python" -m frappe.utils.bench_helper frappe \
     --site "$site" serve --port "$port" --noreload > "$work/logs/serve.log" 2>&1 &)
 
+# A background worker, so prepared reports can really be generated.
+(cd "$work/sites" && nohup "$work/env/bin/python" -m frappe.utils.bench_helper frappe \
+    worker --queue short,default,long > "$work/logs/worker.log" 2>&1 &)
+
 for _ in $(seq 1 60); do
     if curl --silent --fail --header "Host: $site" "http://127.0.0.1:$port/api/method/ping" > /dev/null; then
         ready=1

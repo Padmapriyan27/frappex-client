@@ -67,7 +67,7 @@ jobs:
           sudo apt-get install --yes --quiet --no-install-recommends "$RUNNER_TEMP/wkhtmltox.deb"
           wkhtmltopdf --version
       # wkhtmltopdf fetches the print view's assets by the site's own host
-      # name; Frappe 14 and 15 fail the PDF when that name does not resolve.
+      # name; Frappe 15 fails the PDF when that name does not resolve.
       - name: Resolve the test site's host name
         run: echo "127.0.0.1 frappex.test" | sudo tee --append /etc/hosts
       - name: Start a Frappe site
@@ -82,4 +82,6 @@ jobs:
           uv run --locked --no-editable pytest tests/integration -v
       - name: Show the Frappe server log
         if: failure()
-        run: tail -n 200 "$RUNNER_TEMP/bench/logs/serve.log" || true
+        run: |
+          tail -n 200 "$RUNNER_TEMP/bench/logs/serve.log" || true
+          tail -n 100 "$RUNNER_TEMP/bench/logs/worker.log" || true

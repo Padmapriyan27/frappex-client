@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import asyncio
 import contextlib
+import time
 import uuid
 from collections.abc import Iterator
 
@@ -54,6 +55,10 @@ def reports(client: Client) -> Iterator[dict[str, str]]:
         yield created
     finally:
         for name in created.values():
+            # Prepared Report rows link to the Report, so they go first.
+            for run in client.iter_list("Prepared Report", filters={"report_name": name}):
+                with contextlib.suppress(NotFoundError):
+                    client.delete("Prepared Report", run["name"])
             with contextlib.suppress(NotFoundError):
                 client.delete("Report", name)
 
@@ -79,10 +84,44 @@ def test_no_matching_rows(client: Client, marker: str, reports: dict[str, str]) 
     assert report.total_row is None
 
 
-def test_prepared_report_raises(client: Client, reports: dict[str, str]) -> None:
+MAKE_PREPARED_REPORT = "frappe.core.doctype.prepared_report.prepared_report.make_prepared_report"
+
+
+def wait_for_prepared_report(client: Client, name: str, timeout: float = 120) -> str:
+    deadline = time.monotonic() + timeout
+    while True:
+        status = (client.get_value("Prepared Report", "status", name) or {}).get("status")
+        if status in {"Completed", "Error"} or time.monotonic() > deadline:
+            return str(status)
+        time.sleep(1)
+
+
+def test_prepared_report_without_a_completed_run_raises(
+    client: Client, marker: str, reports: dict[str, str]
+) -> None:
     with pytest.raises(PreparedReportError) as caught:
-        client.run_report(reports["prepared"], {"pattern": "%"})
+        client.run_report(reports["prepared"], {"pattern": f"%{marker}%"})
     assert caught.value.report_name == reports["prepared"]
+    assert caught.value.error is None
+
+
+def test_prepared_report_returns_the_rows_of_its_completed_run(
+    client: Client, marker: str, reports: dict[str, str]
+) -> None:
+    names = client.insert_many("ToDo", [{"description": f"{marker} {i}"} for i in range(2)])
+    filters = {"pattern": f"%{marker}%"}
+
+    job = client.call(
+        MAKE_PREPARED_REPORT, {"report_name": reports["prepared"], "filters": filters}
+    )
+    assert wait_for_prepared_report(client, job["name"]) == "Completed"
+
+    report = client.run_report(reports["prepared"], filters)
+
+    assert report.prepared is True
+    assert {row["todo"] for row in report.rows} == set(names)
+    assert report.total_row is not None
+    assert report.total_row["count"] == 2
 
 
 def test_async_run_report(marker: str, reports: dict[str, str]) -> None:
