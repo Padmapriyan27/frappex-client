@@ -74,8 +74,12 @@ jobs:
         env:
           FRAPPE_BRANCH: ${{ matrix.frappe }}
         run: scripts/ci/start_frappe_site.sh "$FRAPPE_BRANCH" "$RUNNER_TEMP/bench"
-      - name: Run the integration tests
-        run: uv run --locked pytest tests/integration -v
+      # --no-editable builds frappex-client and installs it like a user would,
+      # so the live tests exercise the packaged library, not the source tree.
+      - name: Run the integration tests against the built package
+        run: |
+          uv run --locked --no-editable python -c 'import frappex_client, sys; path = frappex_client.__file__; print(path); sys.exit("site-packages" not in path)'
+          uv run --locked --no-editable pytest tests/integration -v
       - name: Show the Frappe server log
         if: failure()
         run: tail -n 200 "$RUNNER_TEMP/bench/logs/serve.log" || true
