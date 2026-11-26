@@ -96,6 +96,19 @@ def upsert_customer(email: str, values: dict[str, str]) -> None:
         erp.insert("Customer", {"email_id": email, **values})
 ```
 
+**Import records in bulk.** Hundreds of rows in a few requests instead of
+one request each:
+
+```python
+from frappex_client import BulkOperationError
+
+rows = [{"description": f"Call lead {lead}"} for lead in leads]
+try:
+    names = erp.insert_many("ToDo", rows)
+except BulkOperationError as error:
+    print(f"Saved {len(error.completed)}; resume from row {error.failed_at}: {error.error}")
+```
+
 **Serve ERP data from an async web app.** One shared `AsyncClient` in a
 FastAPI service:
 
@@ -182,6 +195,7 @@ except FrappexError:
 - Sync (`Client`) and async (`AsyncClient`) with identical methods
 - API key, OAuth bearer token, username/password, or guest access
 - Automatic pagination with `iter_list`
+- Bulk insert and update in batches, with clear partial-failure reporting
 - A typed exception for each kind of failure
 - Retries only where repeating a request is safe
 - Secure defaults: HTTPS only, certificate checks always on, no redirects
@@ -261,6 +275,8 @@ with Client("https://erp.example.com") as client:
 | `insert(doctype, values)` | Create a document. |
 | `update(doctype, name, values)` | Change fields. |
 | `delete(doctype, name)` | Delete a document. |
+| `insert_many(doctype, docs, batch_size=)` | Create many documents, up to 200 per request; returns their names. |
+| `bulk_update(doctype, {name: values}, batch_size=)` | Change many documents; returns the ones that could not be saved. |
 | `submit(doctype, name)` / `cancel(doctype, name)` | Submit or cancel. |
 | `rename(doctype, old_name, new_name, merge=)` | Rename; returns the new name. |
 | `get_count(doctype, filters)` | Count matching documents. |

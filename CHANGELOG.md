@@ -6,6 +6,20 @@ All notable changes are recorded here. The format follows
 
 ## [Unreleased]
 
+### Added
+
+- `insert_many(doctype, docs, batch_size=200)` creates many documents in
+  batches through `frappe.client.insert_many`. Each batch is saved
+  completely or not at all, and the names come back in the order given.
+- `bulk_update(doctype, {name: values}, batch_size=200)` changes many
+  documents through `frappe.client.bulk_update`. Frappe saves each document
+  on its own; the ones it could not save are returned as
+  `BulkUpdateFailure` items with the server's message.
+- `BulkOperationError`, raised when a whole batch fails. It records the
+  names already saved (`completed`), where to resume (`failed_at`) and the
+  original exception (`error`). Like other writes, a batch is not retried
+  after a network or server error.
+
 ## [0.1.1] - 2026-11-24
 
 ### Changed

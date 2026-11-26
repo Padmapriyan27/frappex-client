@@ -17,6 +17,7 @@ from ._config import RetryPolicy
 from .exceptions import (
     APIError,
     AuthenticationError,
+    BulkOperationError,
     ConfigurationError,
     ConflictError,
     FrappexError,
@@ -30,7 +31,7 @@ from .exceptions import (
     UnexpectedResponseError,
     ValidationError,
 )
-from .types import Document, Filters
+from .types import BulkUpdateFailure, Document, Filters
 
 __all__ = [
     "APIError",
@@ -38,6 +39,8 @@ __all__ = [
     "Auth",
     "AuthenticationError",
     "BearerAuth",
+    "BulkOperationError",
+    "BulkUpdateFailure",
     "Client",
     "ConfigurationError",
     "ConflictError",

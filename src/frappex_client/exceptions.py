@@ -6,9 +6,14 @@ whole family with one clause or pick a specific failure.
 
 from __future__ import annotations
 
+from collections.abc import Sequence
+
+from .types import BulkUpdateFailure
+
 __all__ = [
     "APIError",
     "AuthenticationError",
+    "BulkOperationError",
     "ConfigurationError",
     "ConflictError",
     "FrappexError",
@@ -55,6 +60,42 @@ class UnexpectedResponseError(FrappexError):
         """Store the HTTP status alongside the message."""
         super().__init__(message)
         self.status_code = status_code
+
+
+class BulkOperationError(FrappexError):
+    """A batch of a bulk insert or update failed.
+
+    Earlier batches were saved and stay saved. To resume, fix the cause and
+    send the items from ``failed_at`` onwards again.
+
+    Attributes:
+        completed: Names of the documents that earlier batches saved.
+        failures: Documents that earlier :meth:`~frappex_client.Client.bulk_update`
+            batches reported as not saved. Always empty for inserts.
+        failed_at: Index, in the order the items were given, of the first
+            item of the batch that failed.
+        error: The exception that stopped the batch; also ``__cause__``. If
+            it is a :class:`TransportError`, the failed batch may or may not
+            have been saved: check before sending it again.
+    """
+
+    def __init__(
+        self,
+        *,
+        completed: Sequence[str],
+        failures: Sequence[BulkUpdateFailure],
+        failed_at: int,
+        error: FrappexError,
+    ) -> None:
+        """Describe where the bulk operation stopped and why."""
+        super().__init__(
+            f"The batch starting at item {failed_at} failed after {len(completed)} "
+            f"document(s) were saved: {error}"
+        )
+        self.completed = list(completed)
+        self.failures = list(failures)
+        self.failed_at = failed_at
+        self.error = error
 
 
 class APIError(FrappexError):

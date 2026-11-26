@@ -85,7 +85,7 @@ calls by hand. In both cases they solve the same problems again each time:
 | F8 | A distinct exception per failure class, carrying status, server exception type and server messages. | Yes |
 | F9 | Configurable timeout and retry policy. | Yes |
 | F10 | `/api/v2` routes (count, DocType meta, document copy). | No, later |
-| F11 | Bulk insert and bulk update helpers. | No, later |
+| F11 | Bulk insert and bulk update helpers. | Yes (0.2.0) |
 
 ### 6.2 Security
 

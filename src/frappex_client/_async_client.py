@@ -6,7 +6,7 @@ import asyncio
 import io
 import os
 import ssl
-from collections.abc import AsyncIterator, Mapping, Sequence
+from collections.abc import AsyncIterator, Iterable, Mapping, Sequence
 from types import TracebackType
 from typing import Any, BinaryIO, Literal, TypeVar
 
@@ -24,8 +24,13 @@ from ._base import (
 )
 from ._config import RetryPolicy
 from ._protocol import RawResponse, Request, decode, file_path, parse_retry_after
-from .exceptions import FrappexError, TransportError, UnexpectedResponseError
-from .types import Document, Filters
+from .exceptions import (
+    BulkOperationError,
+    FrappexError,
+    TransportError,
+    UnexpectedResponseError,
+)
+from .types import BulkUpdateFailure, Document, Filters
 
 T = TypeVar("T")
 
@@ -331,6 +336,86 @@ class AsyncClient(ClientCore):
     async def set_value(self, doctype: str, name: str, values: Mapping[str, Any]) -> Document:
         """Set fields on a document and return it as saved."""
         return await self._execute(ops.set_value(doctype, name, values))
+
+    async def insert_many(
+        self,
+        doctype: str,
+        docs: Iterable[Mapping[str, Any]],
+        *,
+        batch_size: int = ops.MAX_BATCH_SIZE,
+    ) -> list[str]:
+        """Insert many documents of one DocType and return their names.
+
+        Documents are sent in batches of ``batch_size``. Frappe saves each
+        batch completely or not at all; earlier batches stay saved if a later
+        one fails. Like every write, a batch is not retried after a network or
+        server error, only after HTTP 429.
+
+        Args:
+            doctype: DocType of every document.
+            docs: Field values for each new document.
+            batch_size: Documents per request, from 1 to 200 (Frappe's limit).
+
+        Returns:
+            The new documents' names, in the order given.
+
+        Raises:
+            BulkOperationError: A batch failed. It records the names already
+                saved, where to resume, and the original error.
+        """
+        prepared = ops.prepare_inserts(doctype, docs)
+        names: list[str] = []
+        for start, batch in ops.batches(prepared, batch_size):
+            try:
+                saved = await self._execute(ops.insert_many(batch))
+            except FrappexError as exc:
+                raise BulkOperationError(
+                    completed=names, failures=[], failed_at=start, error=exc
+                ) from exc
+            names.extend(saved)
+        return names
+
+    async def bulk_update(
+        self,
+        doctype: str,
+        updates: Mapping[str, Mapping[str, Any]],
+        *,
+        batch_size: int = ops.MAX_BATCH_SIZE,
+    ) -> list[BulkUpdateFailure]:
+        """Change fields on many documents of one DocType.
+
+        Frappe saves each document on its own, so one invalid document does
+        not stop the others. Updates are sent in batches of ``batch_size``;
+        like every write, a batch is not retried after a network or server
+        error.
+
+        Args:
+            doctype: DocType of every document.
+            updates: Maps each document name to the fields to set, such as
+                ``{"TODO-0001": {"status": "Closed"}}``.
+            batch_size: Documents per request, from 1 to 200.
+
+        Returns:
+            The documents that could not be saved; empty when all were.
+
+        Raises:
+            BulkOperationError: A whole batch failed, for example because of a
+                network error or missing permission.
+        """
+        prepared = ops.prepare_updates(doctype, updates)
+        completed: list[str] = []
+        failures: list[BulkUpdateFailure] = []
+        for start, batch in ops.batches(prepared, batch_size):
+            try:
+                failed = await self._execute(ops.bulk_update(doctype, batch))
+            except FrappexError as exc:
+                raise BulkOperationError(
+                    completed=completed, failures=failures, failed_at=start, error=exc
+                ) from exc
+            failed_names = {failure.name for failure in failed}
+            completed += [name for name, _ in batch if name not in failed_names]
+            failures += failed
+        return failures
 
     # -- methods -----------------------------------------------------------
 

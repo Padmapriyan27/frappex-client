@@ -9,18 +9,24 @@ implementation of the Frappe API.
 from __future__ import annotations
 
 import json
-from collections.abc import Callable, Mapping, Sequence
+from collections.abc import Callable, Iterable, Mapping, Sequence
 from dataclasses import dataclass
 from typing import Any, Generic, Literal, TypeVar
 
 from ._protocol import Request, method_path, resource_path
 from .exceptions import ConfigurationError, UnexpectedResponseError
-from .types import Document, Filters
+from .types import BulkUpdateFailure, Document, Filters
 
 T = TypeVar("T")
 
 DEFAULT_PAGE_SIZE = 100
 STABLE_ORDER = "creation asc, name asc"
+
+# frappe.client.insert_many refuses more than 200 documents per request.
+MAX_BATCH_SIZE = 200
+# Keys bulk_update sets itself; letting values override them would retarget
+# or rename the document.
+_UPDATE_RESERVED_KEYS = frozenset({"doctype", "docname", "name"})
 
 
 @dataclass(frozen=True)
@@ -248,4 +254,123 @@ def upload_file(
     return Operation(
         Request("POST", method_path("upload_file"), form=form, file=(filename, bytes(content))),
         _document(_message),
+    )
+
+
+def batches(items: Sequence[T], batch_size: int) -> list[tuple[int, Sequence[T]]]:
+    """Split ``items`` into ``(start index, batch)`` pairs.
+
+    Raises:
+        ConfigurationError: ``batch_size`` is outside 1 to 200.
+    """
+    if isinstance(batch_size, bool) or not 1 <= batch_size <= MAX_BATCH_SIZE:
+        raise ConfigurationError(f"batch_size must be between 1 and {MAX_BATCH_SIZE}.")
+    return [
+        (start, items[start : start + batch_size]) for start in range(0, len(items), batch_size)
+    ]
+
+
+def _check_doctype(doctype: str) -> None:
+    if not isinstance(doctype, str) or not doctype.strip():
+        raise ConfigurationError("doctype must be a non-empty string.")
+
+
+def prepare_inserts(doctype: str, docs: Iterable[Mapping[str, Any]]) -> list[Document]:
+    """Copy ``docs`` and stamp each one with ``doctype``.
+
+    Raises:
+        ConfigurationError: A document is not a mapping, or names another DocType.
+    """
+    _check_doctype(doctype)
+    if isinstance(docs, Mapping | str | bytes):
+        raise ConfigurationError("docs must be a list of documents, not a single document.")
+    prepared = []
+    for index, doc in enumerate(docs):
+        if not isinstance(doc, Mapping):
+            raise ConfigurationError(f"docs[{index}] must be a mapping of field names to values.")
+        values = dict(doc)
+        if values.setdefault("doctype", doctype) != doctype:
+            raise ConfigurationError(f"docs[{index}] belongs to another DocType.")
+        prepared.append(values)
+    return prepared
+
+
+def insert_many(docs: Sequence[Document]) -> Operation[list[str]]:
+    """Insert up to 200 prepared documents in one request, all or none."""
+
+    def parse(payload: dict[str, Any]) -> list[str]:
+        names = _message(payload)
+        if not isinstance(names, list) or len(names) != len(docs):
+            raise UnexpectedResponseError(
+                "The reply does not list one name per document.", status_code=200
+            )
+        return [str(name) for name in names]
+
+    return Operation(
+        Request("POST", method_path("frappe.client.insert_many"), json={"docs": list(docs)}), parse
+    )
+
+
+def prepare_updates(
+    doctype: str, updates: Mapping[str, Mapping[str, Any]]
+) -> list[tuple[str, Document]]:
+    """Validate ``updates`` and return ``(name, values)`` pairs in order.
+
+    Raises:
+        ConfigurationError: A name is empty, the values are not a mapping, or
+            they try to set ``doctype``, ``docname`` or ``name``.
+    """
+    _check_doctype(doctype)
+    if not isinstance(updates, Mapping):
+        raise ConfigurationError("updates must map document names to the values to set.")
+    prepared = []
+    for name, values in updates.items():
+        if not isinstance(name, str) or not name:
+            raise ConfigurationError("Every document name in updates must be a non-empty string.")
+        if not isinstance(values, Mapping):
+            raise ConfigurationError(f"The values for {name!r} must be a mapping.")
+        reserved = _UPDATE_RESERVED_KEYS.intersection(values)
+        if reserved:
+            raise ConfigurationError(
+                f"The values for {name!r} must not set {', '.join(sorted(reserved))}; "
+                "use rename() to rename a document."
+            )
+        prepared.append((name, dict(values)))
+    return prepared
+
+
+def _failure(entry: Any) -> BulkUpdateFailure:
+    if not isinstance(entry, dict) or not isinstance(entry.get("doc"), dict):
+        raise UnexpectedResponseError(
+            "The reply lists a failure in an unknown form.", status_code=200
+        )
+    traceback = str(entry.get("exc") or "")
+    lines = [line.strip() for line in traceback.splitlines() if line.strip()]
+    return BulkUpdateFailure(
+        name=str(entry["doc"].get("docname", "")),
+        message=lines[-1] if lines else "The server did not say why.",
+        traceback=traceback,
+    )
+
+
+def bulk_update(
+    doctype: str, batch: Sequence[tuple[str, Document]]
+) -> Operation[list[BulkUpdateFailure]]:
+    """Update documents in one request; each is saved on its own."""
+    docs = [{**values, "doctype": doctype, "docname": name} for name, values in batch]
+
+    def parse(payload: dict[str, Any]) -> list[BulkUpdateFailure]:
+        result = _message(payload)
+        failed = result.get("failed_docs") if isinstance(result, dict) else None
+        if not isinstance(failed, list):
+            raise UnexpectedResponseError(
+                "The reply does not contain failed_docs.", status_code=200
+            )
+        return [_failure(entry) for entry in failed]
+
+    # Frappe's bulk_update parses ``docs`` with json.loads, so it must be a
+    # JSON string even inside a JSON body.
+    return Operation(
+        Request("POST", method_path("frappe.client.bulk_update"), json={"docs": _dumps(docs)}),
+        parse,
     )
