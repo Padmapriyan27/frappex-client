@@ -56,7 +56,7 @@ calls by hand. In both cases they solve the same problems again each time:
 - Running inside a Frappe site (server-side code already has `frappe.*`).
 - A typed model per DocType, or code generation from DocType definitions.
 - The `/api/v2` routes. Planned for a later release.
-- Socket.IO / realtime events, reports that run in the background (prepared reports), print formats and PDF generation.
+- Socket.IO / realtime events, and reports that run in the background (prepared reports).
 - A command-line tool or an MCP server.
 - Managing Frappe sites, benches or users.
 
@@ -87,6 +87,7 @@ calls by hand. In both cases they solve the same problems again each time:
 | F10 | `/api/v2` routes (count, DocType meta, document copy). | No, later |
 | F11 | Bulk insert and bulk update helpers. | Yes (0.2.0) |
 | F12 | Run Query, Script and Custom Reports as columns and rows. | Yes (0.2.0) |
+| F13 | Download a document's print format as a PDF. | Yes (0.2.0) |
 
 ### 6.2 Security
 

@@ -452,3 +452,27 @@ def run_report(report_name: str, filters: Mapping[str, Any] | None) -> Operation
     return Operation(
         Request("GET", method_path("frappe.desk.query_report.run"), params=params), parse
     )
+
+
+PDF_CONTENT_TYPE = "application/pdf"
+
+
+def pdf_request(
+    doctype: str,
+    name: str,
+    *,
+    print_format: str | None,
+    letterhead: str | None,
+    no_letterhead: bool,
+    language: str | None,
+) -> Request:
+    """Describe a request for a document's print format as a PDF."""
+    _check_doctype(doctype)
+    if not isinstance(name, str) or not name:
+        raise ConfigurationError("name must be a non-empty string.")
+    if no_letterhead and letterhead is not None:
+        raise ConfigurationError("Pass either letterhead or no_letterhead=True, not both.")
+    params = {"doctype": doctype, "name": name, "no_letterhead": "1" if no_letterhead else "0"}
+    optional = {"format": print_format, "letterhead": letterhead, "language": language}
+    params.update({key: value for key, value in optional.items() if value is not None})
+    return Request("GET", method_path("frappe.utils.print_format.download_pdf"), params=params)

@@ -57,6 +57,25 @@ frappe new-site "$site" \
     --admin-password "$admin_password" --mariadb-user-host-login-scope=% > "$work/logs/new-site.log" 2>&1 \
     || { tail -n 60 "$work/logs/new-site.log"; exit 1; }
 
+# Print views link Frappe's bundled print stylesheet and script, which only
+# `bench build` produces (it needs Node). Without assets/assets.json the print
+# template fails, so map both names to empty files: PDFs render unstyled.
+mkdir -p "$work/sites/assets/frappe/dist/css" "$work/sites/assets/frappe/dist/js"
+: > "$work/sites/assets/frappe/dist/css/print.bundle.css"
+: > "$work/sites/assets/frappe/dist/js/print.bundle.js"
+cat > "$work/sites/assets/assets.json" <<'JSON'
+{
+ "print.bundle.css": "/assets/frappe/dist/css/print.bundle.css",
+ "print.bundle.js": "/assets/frappe/dist/js/print.bundle.js"
+}
+JSON
+
+# wkhtmltopdf loads the print view's stylesheet from the site's public URL.
+# Without host_name Frappe builds that URL from the request's Host header,
+# which has no port, so the fetch goes to port 80 and is refused. The name
+# must resolve to this machine (CI adds it to /etc/hosts).
+frappe --site "$site" set-config host_name "http://$site:$port"
+
 env_file="$work/test.env"
 (cd "$work/sites" && "$work/env/bin/python" "$script_dir/provision_site.py" "$site" "$port" "$env_file")
 echo "FRAPPEX_TEST_PASSWORD=$admin_password" >> "$env_file"

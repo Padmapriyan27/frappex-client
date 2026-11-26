@@ -18,7 +18,7 @@ from typing import Any
 
 import pytest
 
-from frappex_client import Client, NotFoundError, TokenAuth
+from frappex_client import APIError, Client, NotFoundError, TokenAuth
 
 URL = os.environ.get("FRAPPEX_TEST_URL", "")
 KEY = os.environ.get("FRAPPEX_TEST_API_KEY", "")
@@ -43,6 +43,15 @@ def pytest_collection_modifyitems(items: list[pytest.Item]) -> None:
             item.add_marker(pytest.mark.integration)
             if not CONFIGURED:
                 item.add_marker(skip)
+
+
+def pytest_exception_interact(
+    node: pytest.Item, call: pytest.CallInfo[Any], report: pytest.TestReport
+) -> None:
+    """Show the site's own traceback when a test fails on a server error."""
+    error = call.excinfo.value if call.excinfo else None
+    if isinstance(error, APIError) and error.traceback:
+        report.sections.append(("Server traceback", error.traceback))
 
 
 def token_auth() -> TokenAuth:

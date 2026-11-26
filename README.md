@@ -171,6 +171,13 @@ with open("invoice.pdf", "rb") as pdf:
     erp.upload_file("invoice.pdf", pdf.read(), doctype="Sales Invoice", docname="SINV-0001")
 ```
 
+**Send invoices as PDFs.** Any print format, rendered by the site:
+
+```python
+with open("SINV-0001.pdf", "wb") as out:
+    erp.download_pdf_to("Sales Invoice", "SINV-0001", out, print_format="Standard")
+```
+
 **Monitor a site.** A health check needs no credentials:
 
 ```python
@@ -189,9 +196,6 @@ except FrappexError:
   the server-side API directly. Calling your own site over HTTP is slower,
   needs an API key, and saves changes outside your current transaction.
 - **Realtime events.** frappex-client does not speak Socket.IO.
-- **Print formats (PDFs).** Not supported yet: Frappe's PDF endpoint returns a
-  file rather than JSON, which `call` cannot read, and `download` only fetches
-  stored files. Planned for a later release.
 - **Reports that run in the background** (prepared reports). `run_report`
   raises `PreparedReportError` for them instead of returning stale or empty
   rows.
@@ -204,6 +208,7 @@ except FrappexError:
 - Automatic pagination with `iter_list`
 - Bulk insert and update in batches, with clear partial-failure reporting
 - Query, Script and Custom Reports as columns and rows keyed by field name
+- Print formats as PDFs, streamed to a file if you like
 - A typed exception for each kind of failure
 - Retries only where repeating a request is safe
 - Secure defaults: HTTPS only, certificate checks always on, no redirects
@@ -294,6 +299,7 @@ with Client("https://erp.example.com") as client:
 | `run_report(report_name, filters)` | Run a Query, Script or Custom Report; returns columns, rows and the totals row. |
 | `upload_file(filename, content, is_private=, doctype=, docname=)` | Upload a file. |
 | `download(file_url)` / `download_to(file_url, target)` | Fetch a file. |
+| `download_pdf(doctype, name, print_format=)` / `download_pdf_to(doctype, name, target)` | Render a document's print format as a PDF. |
 
 ## Errors
 
