@@ -149,8 +149,9 @@ possible on a site with only Frappe installed.
 | `tests/integration/test_pdf.py` | `download_pdf` and `download_pdf_to`; the site needs `wkhtmltopdf` |
 
 The PDF tests need `wkhtmltopdf` (the patched-Qt `wkhtmltox` build Frappe
-recommends) on the machine that runs the site. CI installs it from a
-checksum-pinned package.
+recommends) on the machine that runs the site, and the site's host name
+(`frappex.test` for the script below) must resolve to that machine, for
+example through `/etc/hosts`. CI does both; the package is checksum-pinned.
 
 Known server behaviour the tests allow for: the development server
 (`bench serve`) answers HTTP 500 for a missing static file, where a

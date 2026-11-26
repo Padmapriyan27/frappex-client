@@ -70,6 +70,12 @@ cat > "$work/sites/assets/assets.json" <<'JSON'
 }
 JSON
 
+# wkhtmltopdf loads the print view's stylesheet from the site's public URL.
+# Without host_name Frappe builds that URL from the request's Host header,
+# which has no port, so the fetch goes to port 80 and is refused. The name
+# must resolve to this machine (CI adds it to /etc/hosts).
+frappe --site "$site" set-config host_name "http://$site:$port"
+
 env_file="$work/test.env"
 (cd "$work/sites" && "$work/env/bin/python" "$script_dir/provision_site.py" "$site" "$port" "$env_file")
 echo "FRAPPEX_TEST_PASSWORD=$admin_password" >> "$env_file"
