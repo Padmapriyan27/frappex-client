@@ -512,10 +512,21 @@ class AsyncClient(ClientCore):
 
         A download is not retried, since part of it may already be written.
         """
-        request = Request("GET", file_path(file_url))
+        return await self._stream_to(Request("GET", file_path(file_url)), target, max_bytes)
+
+    async def _stream_to(
+        self,
+        request: Request,
+        target: BinaryIO,
+        max_bytes: int | None,
+        content_type: str | None = None,
+    ) -> int:
+        """Send ``request`` and write a successful body into ``target``."""
         await self._ensure_session()
         try:
-            async with self._http.stream("GET", request.path) as response:
+            async with self._http.stream(
+                request.method, request.path, **self._request_arguments(request)
+            ) as response:
                 if response.status_code != 200:
                     size = ResponseSize(self._max_response_bytes)
                     body = bytearray()
@@ -527,6 +538,7 @@ class AsyncClient(ClientCore):
                         f"HTTP {response.status_code}: expected 200 for a download.",
                         status_code=response.status_code,
                     )
+                self._check_content_type(response.headers, content_type)
                 self._check_declared_length(response.headers, max_bytes)
                 size = ResponseSize(max_bytes)
                 async for chunk in response.aiter_bytes(CHUNK_SIZE):
@@ -543,4 +555,83 @@ class AsyncClient(ClientCore):
         """
         buffer = io.BytesIO()
         await self.download_to(file_url, buffer, max_bytes=self._max_response_bytes)
+        return buffer.getvalue()
+
+    async def download_pdf_to(
+        self,
+        doctype: str,
+        name: str,
+        target: BinaryIO,
+        *,
+        print_format: str | None = None,
+        letterhead: str | None = None,
+        no_letterhead: bool = False,
+        language: str | None = None,
+        max_bytes: int | None = None,
+    ) -> int:
+        """Render a document's print format as a PDF and stream it into ``target``.
+
+        Args:
+            doctype: DocType of the document, such as ``"Sales Invoice"``.
+            name: Name of the document.
+            print_format: Print format to use; the DocType's default when omitted.
+            letterhead: Letter head to print with; the default when omitted.
+            no_letterhead: Print without any letter head.
+            language: Language code to print in, such as ``"de"``.
+            target: Writable binary file object.
+            max_bytes: Stop with :class:`~frappex_client.ResponseTooLargeError` after
+                this many bytes; unlimited when omitted.
+
+        Returns:
+            Number of bytes written.
+
+        Raises:
+            UnexpectedResponseError: The site answered with something other
+                than a PDF, such as an HTML page.
+
+        Like every download, it is not retried.
+        """
+        request = ops.pdf_request(
+            doctype,
+            name,
+            print_format=print_format,
+            letterhead=letterhead,
+            no_letterhead=no_letterhead,
+            language=language,
+        )
+        return await self._stream_to(request, target, max_bytes, ops.PDF_CONTENT_TYPE)
+
+    async def download_pdf(
+        self,
+        doctype: str,
+        name: str,
+        *,
+        print_format: str | None = None,
+        letterhead: str | None = None,
+        no_letterhead: bool = False,
+        language: str | None = None,
+    ) -> bytes:
+        """Return a document's print format as PDF bytes, up to ``max_response_bytes``.
+
+        Args:
+            doctype: DocType of the document, such as ``"Sales Invoice"``.
+            name: Name of the document.
+            print_format: Print format to use; the DocType's default when omitted.
+            letterhead: Letter head to print with; the default when omitted.
+            no_letterhead: Print without any letter head.
+            language: Language code to print in, such as ``"de"``.
+
+        Use :meth:`download_pdf_to` to write a large PDF straight to a file.
+        """
+        buffer = io.BytesIO()
+        await self.download_pdf_to(
+            doctype,
+            name,
+            buffer,
+            print_format=print_format,
+            letterhead=letterhead,
+            no_letterhead=no_letterhead,
+            language=language,
+            max_bytes=self._max_response_bytes,
+        )
         return buffer.getvalue()

@@ -34,6 +34,13 @@ All notable changes are recorded here. The format follows
   Custom Report with saved filters.
 - `PreparedReportError`, raised when a report is set to run in the
   background, instead of returning a job status as if it were data.
+- `download_pdf(doctype, name, ...)` and `download_pdf_to(doctype, name,
+  target, ...)` render a document's print format as a PDF through
+  `frappe.utils.print_format.download_pdf`, with optional `print_format`,
+  `letterhead`, `no_letterhead` and `language`. A reply that is not
+  `application/pdf`, such as an HTML page, raises `UnexpectedResponseError`
+  instead of being written to the file. Like other downloads, they are not
+  retried.
 
 ## [0.1.1] - 2026-11-24
 

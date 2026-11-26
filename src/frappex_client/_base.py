@@ -19,6 +19,7 @@ from .exceptions import (
     RequestTimeoutError,
     ResponseTooLargeError,
     TransportError,
+    UnexpectedResponseError,
 )
 
 logger = logging.getLogger("frappex_client")
@@ -133,6 +134,22 @@ class ClientCore:
         declared = headers.get("content-length")
         if limit is not None and declared is not None and declared.isdigit():
             ResponseSize(limit).add(int(declared))
+
+    @staticmethod
+    def _check_content_type(headers: Mapping[str, str], expected: str | None) -> None:
+        """Refuse a successful reply whose ``Content-Type`` is not ``expected``.
+
+        A proxy or login page can answer 200 with HTML; writing that into a
+        ``.pdf`` file would hide the problem.
+        """
+        if expected is None:
+            return
+        actual = headers.get("content-type", "").split(";")[0].strip().lower()
+        if actual != expected:
+            raise UnexpectedResponseError(
+                f"Expected {expected}, but the site answered with {actual or 'no content type'}.",
+                status_code=200,
+            )
 
     @staticmethod
     def _transport_error(request: Request, exc: httpx.HTTPError) -> TransportError:

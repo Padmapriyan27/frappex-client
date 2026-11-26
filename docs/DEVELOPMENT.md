@@ -77,7 +77,7 @@ the two clients.
    with `await` in the async client.
 3. Add a test to `tests/unit/test_clients.py` using the `site` fixture. It
    runs once per client automatically.
-4. Add a case to `tests/integration/test_live_site.py` if the call's server
+4. Add a case under `tests/integration/` if the call's server
    behaviour is not obvious.
 5. Add the method to the table in the README and a line to `CHANGELOG.md`.
 
@@ -133,6 +133,7 @@ What the tests write, and how it is removed:
 | `ToDo` documents whose description holds a unique marker | The `marker` fixture, after each test |
 | `File` documents attached during upload tests | The test itself, in a `finally` block |
 | One custom DocType named `Frappex Test <id>` and its documents | The `doctype` fixture, at the end of the run |
+| Two Query Reports named `Frappex Report <id>` | The `reports` fixture in `test_report.py`, at the end of the module |
 
 The custom DocType is submittable and lets the caller choose document names,
 which is what makes the submit, cancel, rename and awkward-name tests
@@ -143,6 +144,13 @@ possible on a site with only Frappe installed.
 | `tests/integration/conftest.py` | Settings, the shared client, the `marker` and `doctype` fixtures |
 | `tests/integration/test_documents.py` | CRUD, filters, paging, awkward names, submit, cancel, rename, error mapping |
 | `tests/integration/test_methods_files_auth.py` | Method calls, uploads, downloads, wrong credentials, password login, the async client |
+| `tests/integration/test_bulk.py` | `insert_many` batches and rollback, `bulk_update` per-document failures |
+| `tests/integration/test_report.py` | `run_report` columns, rows, total row and prepared reports |
+| `tests/integration/test_pdf.py` | `download_pdf` and `download_pdf_to`; the site needs `wkhtmltopdf` |
+
+The PDF tests need `wkhtmltopdf` (the patched-Qt `wkhtmltox` build Frappe
+recommends) on the machine that runs the site. CI installs it from a
+checksum-pinned package.
 
 Known server behaviour the tests allow for: the development server
 (`bench serve`) answers HTTP 500 for a missing static file, where a
