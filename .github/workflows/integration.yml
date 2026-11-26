@@ -27,8 +27,6 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - frappe: version-14
-            python: "3.10"
           - frappe: version-15
             python: "3.12"
           - frappe: version-16

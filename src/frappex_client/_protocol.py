@@ -180,10 +180,9 @@ def _traceback(payload: Mapping[str, Any]) -> str | None:
 def _exception_type(payload: Mapping[str, Any]) -> str | None:
     """Return the name of the server-side exception class, when reported.
 
-    Frappe 15 and later send it as ``exc_type``. Frappe 14 sends only
-    ``exception``, the last line of the traceback, such as
-    ``frappe.exceptions.MandatoryError: Title``, and only when the site
-    exposes tracebacks.
+    Frappe sends it as ``exc_type``. When that is missing, the name is taken
+    from ``exception``, the last line of the traceback, such as
+    ``frappe.exceptions.MandatoryError: Title``.
     """
     exc_type = payload.get("exc_type")
     if isinstance(exc_type, str) and exc_type:
