@@ -30,7 +30,7 @@ from .exceptions import (
     TransportError,
     UnexpectedResponseError,
 )
-from .types import BulkUpdateFailure, Document, Filters
+from .types import BulkUpdateFailure, Document, Filters, ReportResult
 
 T = TypeVar("T")
 
@@ -436,6 +436,25 @@ class AsyncClient(ClientCore):
                 safe to repeat.
         """
         return await self._execute(ops.call(method, params, http_method))
+
+    async def run_report(
+        self, report_name: str, filters: Mapping[str, Any] | None = None
+    ) -> ReportResult:
+        """Run a Query, Script or Custom Report and return its columns and rows.
+
+        Args:
+            report_name: Name of the report, such as ``"General Ledger"``.
+            filters: The report's filters, such as ``{"company": "Acme"}``.
+
+        Returns:
+            The columns, the rows keyed by column field name, and the totals
+            row when the report adds one.
+
+        Raises:
+            PreparedReportError: The report runs in the background, so the
+                site returned no rows.
+        """
+        return await self._execute(ops.run_report(report_name, filters))
 
     # -- files -------------------------------------------------------------
 

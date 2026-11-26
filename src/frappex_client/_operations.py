@@ -14,8 +14,8 @@ from dataclasses import dataclass
 from typing import Any, Generic, Literal, TypeVar
 
 from ._protocol import Request, method_path, resource_path
-from .exceptions import ConfigurationError, UnexpectedResponseError
-from .types import BulkUpdateFailure, Document, Filters
+from .exceptions import ConfigurationError, PreparedReportError, UnexpectedResponseError
+from .types import BulkUpdateFailure, Document, Filters, ReportResult
 
 T = TypeVar("T")
 
@@ -373,4 +373,82 @@ def bulk_update(
     return Operation(
         Request("POST", method_path("frappe.client.bulk_update"), json={"docs": _dumps(docs)}),
         parse,
+    )
+
+
+def _scrub(label: str) -> str:
+    """Turn a label into a field name the way ``frappe.scrub`` does."""
+    return label.replace(" ", "_").replace("-", "_").lower()
+
+
+def _report_column(column: Any) -> Document:
+    """Normalise one column, as Frappe's ``get_column_as_dict`` does.
+
+    Older reports describe columns as ``"Label:Fieldtype/Options:Width"``.
+    """
+    if isinstance(column, str):
+        label, *rest = column.split(":")
+        parsed: Document = {"label": label, "fieldname": _scrub(label)}
+        if rest and rest[0]:
+            fieldtype, _, options = rest[0].partition("/")
+            parsed["fieldtype"] = fieldtype
+            if options:
+                parsed["options"] = options
+        if len(rest) > 1 and rest[1]:
+            parsed["width"] = rest[1]
+        return parsed
+    if isinstance(column, dict):
+        parsed = dict(column)
+        parsed.setdefault("label", str(parsed.get("fieldname") or ""))
+        if not parsed.get("fieldname"):
+            parsed["fieldname"] = _scrub(str(parsed["label"]))
+        return parsed
+    raise UnexpectedResponseError("The report lists a column in an unknown form.", status_code=200)
+
+
+def _report_row(row: Any, fieldnames: Sequence[str]) -> Document:
+    if isinstance(row, dict):
+        return dict(row)
+    if isinstance(row, list | tuple):
+        return dict(zip(fieldnames, row, strict=False))
+    raise UnexpectedResponseError("The report lists a row in an unknown form.", status_code=200)
+
+
+def run_report(report_name: str, filters: Mapping[str, Any] | None) -> Operation[ReportResult]:
+    """Run a Query, Script or Custom Report through ``frappe.desk.query_report.run``."""
+    if not isinstance(report_name, str) or not report_name.strip():
+        raise ConfigurationError("report_name must be a non-empty string.")
+    if filters is not None and not isinstance(filters, Mapping):
+        raise ConfigurationError("filters must be a mapping of filter names to values.")
+    params = {"report_name": report_name, "filters": _dumps(dict(filters or {}))}
+    if filters:
+        # Without this, a Custom Report silently replaces the caller's
+        # filters with the ones saved on the report.
+        params["are_default_filters"] = "0"
+
+    def parse(payload: dict[str, Any]) -> ReportResult:
+        result = _message(payload)
+        if not isinstance(result, dict):
+            raise UnexpectedResponseError("The reply does not contain a report.", status_code=200)
+        if result.get("prepared_report"):
+            raise PreparedReportError(report_name)
+        raw_columns = result.get("columns") or []
+        raw_rows = result.get("result") or []
+        if not isinstance(raw_columns, list) or not isinstance(raw_rows, list):
+            raise UnexpectedResponseError("The report reply is malformed.", status_code=200)
+        columns = [_report_column(column) for column in raw_columns]
+        fieldnames = [str(column["fieldname"]) for column in columns]
+        rows = [_report_row(row, fieldnames) for row in raw_rows]
+        # Frappe appends the totals row itself when the report asks for one.
+        total_row = rows.pop() if result.get("add_total_row") and rows else None
+        return ReportResult(
+            columns=columns,
+            rows=rows,
+            total_row=total_row,
+            message=result.get("message"),
+            raw=result,
+        )
+
+    return Operation(
+        Request("GET", method_path("frappe.desk.query_report.run"), params=params), parse
     )

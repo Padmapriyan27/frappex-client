@@ -23,6 +23,7 @@ from .exceptions import (
     FrappexError,
     NotFoundError,
     PermissionDeniedError,
+    PreparedReportError,
     RateLimitError,
     RequestTimeoutError,
     ResponseTooLargeError,
@@ -31,7 +32,7 @@ from .exceptions import (
     UnexpectedResponseError,
     ValidationError,
 )
-from .types import BulkUpdateFailure, Document, Filters
+from .types import BulkUpdateFailure, Document, Filters, ReportResult
 
 __all__ = [
     "APIError",
@@ -50,7 +51,9 @@ __all__ = [
     "NotFoundError",
     "PasswordAuth",
     "PermissionDeniedError",
+    "PreparedReportError",
     "RateLimitError",
+    "ReportResult",
     "RequestTimeoutError",
     "ResponseTooLargeError",
     "RetryPolicy",
