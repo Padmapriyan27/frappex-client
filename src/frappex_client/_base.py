@@ -32,6 +32,9 @@ logger = logging.getLogger("frappex_client")
 # otherwise; raised to twice the read timeout when that is longer.
 DEFAULT_MAX_REQUEST_TIME = 300.0
 
+# Content encodings a reply may use; the same ones the client offers.
+_ACCEPTED_ENCODINGS = frozenset({"identity", "gzip", "deflate"})
+
 # Requests a client keeps in flight at once unless told otherwise: enough to
 # overlap network waits, few enough not to swamp a site's worker processes.
 DEFAULT_MAX_CONCURRENCY = 10
@@ -246,6 +249,26 @@ class ClientCore:
         declared = headers.get("content-length")
         if limit is not None and declared is not None and declared.isdigit():
             ResponseSize(limit).add(int(declared))
+
+    @staticmethod
+    def _check_content_encoding(headers: Mapping[str, str], status_code: int) -> None:
+        """Refuse a reply compressed with an encoding the client did not offer.
+
+        Offering only gzip and deflate is not enough: a hostile site can send
+        brotli or zstd anyway, and httpx decodes them whenever those packages
+        are installed, expanding a small read into gigabytes before any size
+        check. The reply is refused before its body is read.
+        """
+        encodings = [
+            part.strip().lower() for part in headers.get("content-encoding", "").split(",")
+        ]
+        unexpected = [e for e in encodings if e and e not in _ACCEPTED_ENCODINGS]
+        if unexpected:
+            raise UnexpectedResponseError(
+                f"The reply uses Content-Encoding {', '.join(unexpected)!r}, which "
+                "frappex-client does not accept (only gzip and deflate).",
+                status_code=status_code,
+            )
 
     @staticmethod
     def _check_content_type(headers: Mapping[str, str], expected: str | None) -> None:

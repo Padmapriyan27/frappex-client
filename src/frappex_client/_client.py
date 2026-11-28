@@ -71,11 +71,13 @@ class Client(ClientCore):
         max_concurrency: Most requests in flight at once (10 by default).
             Further requests wait for a free slot instead of failing, and the
             connection pool is sized to match. ``None`` removes the limit.
-        max_request_time: Longest one request attempt may take, from sending
-            to the last byte of the reply, in seconds. It stops a site that
-            sends a reply very slowly from holding the client forever. By
-            default 300, or twice the read ``timeout`` if that is longer;
-            ``math.inf`` removes it.
+        max_request_time: Longest one request attempt may take, in seconds.
+            It stops a site that sends a reply body very slowly from holding
+            the client forever; it is checked each time part of the body
+            arrives, so at worst it ends one read ``timeout`` late. The reply
+            headers are bounded by the read ``timeout`` per read and by the
+            HTTP library's header size limit. By default 300, or twice the
+            read ``timeout`` if that is longer; ``math.inf`` removes it.
         http2: Offer HTTP/2, which lets many concurrent requests share one
             connection. Needs ``pip install "frappex-client[http2]"``. Sites
             that do not support it are spoken to over HTTP/1.1, and so is a
@@ -171,6 +173,7 @@ class Client(ClientCore):
             with self._http.stream(
                 request.method, request.path, **self._request_arguments(request)
             ) as response:
+                self._check_content_encoding(response.headers, response.status_code)
                 self._check_declared_length(response.headers, self._max_response_bytes)
                 size = ResponseSize(self._max_response_bytes)
                 chunks: list[bytes] = []
@@ -586,6 +589,7 @@ class Client(ClientCore):
                 with self._http.stream(
                     request.method, request.path, **self._request_arguments(request)
                 ) as response:
+                    self._check_content_encoding(response.headers, response.status_code)
                     if response.status_code != 200:
                         size = ResponseSize(self._max_response_bytes)
                         body = bytearray()

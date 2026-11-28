@@ -51,16 +51,19 @@ All notable changes are recorded here. The format follows
   capture local variables (Sentry and others) would record.
 - An `ssl.SSLContext` passed as `verify` must require certificates and check
   hostnames; one that does not is refused, like `verify=False`.
-- Only `gzip, deflate` is offered in `Accept-Encoding`, and the header can
-  no longer be overridden. httpx would otherwise offer brotli or zstd when
+- Only `gzip, deflate` is offered in `Accept-Encoding`, the header can no
+  longer be overridden, and a reply that uses any other `Content-Encoding`
+  is refused before its body is read (a hostile site could otherwise send
+  brotli or zstd regardless). httpx would otherwise offer brotli or zstd when
   those packages are installed, which can expand a small reply into
   gigabytes before the size limit is checked.
 - New `max_request_time` (300 s by default, or twice the read timeout if
   longer; `math.inf` disables it): the longest one request attempt may take.
   Per-read timeouts alone never stop a site that sends a reply a byte at a
-  time. The async client enforces it over the whole request; the sync client
-  between the pieces of the reply, so at worst it ends one read timeout
-  later.
+  time. The async client enforces it over the whole request, headers
+  included. The sync client checks it each time part of the body arrives,
+  so at worst it ends one read timeout late; its header phase stays bounded
+  by the read timeout and the HTTP library's header size limit.
 - Requires Python 3.10.7 or later, the first 3.10 release that limits
   conversion of huge numbers (CVE-2020-10735).
 
