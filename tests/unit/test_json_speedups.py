@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import math
 from typing import Any
 
 import pytest
@@ -32,8 +33,26 @@ def stdlib_only(body: bytes | str, monkeypatch: pytest.MonkeyPatch) -> Any:
 
 
 def same(a: Any, b: Any) -> bool:
-    # NaN is not equal to itself, so compare the serialised forms.
-    return json.dumps(a, sort_keys=True) == json.dumps(b, sort_keys=True)
+    """Compare decoded values exactly, iteratively (no recursion limit), NaN equal to NaN."""
+    pending = [(a, b)]
+    while pending:
+        x, y = pending.pop()
+        if type(x) is not type(y):
+            return False
+        if isinstance(x, list):
+            if len(x) != len(y):
+                return False
+            pending.extend(zip(x, y, strict=True))
+        elif isinstance(x, dict):
+            if list(x) != list(y):
+                return False
+            pending.extend((x[key], y[key]) for key in x)
+        elif isinstance(x, float) and math.isnan(x):
+            if not math.isnan(y):
+                return False
+        elif x != y:
+            return False
+    return True
 
 
 @settings(max_examples=300, deadline=None)
