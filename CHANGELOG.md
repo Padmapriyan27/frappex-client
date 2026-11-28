@@ -39,8 +39,35 @@ All notable changes are recorded here. The format follows
 - Debug log lines name the protocol each request used, for example
   `GET /api/method/ping -> 200 (HTTP/2)`.
 
+### Security
+
+- Downloads (`download`, `download_to`) accept only Frappe's file locations,
+  `/files/...` and `/private/files/...`. Before, a `file_url` taken from
+  document data could point at any route on the site, such as
+  `/api/resource/User/Administrator`, which the client would then call with
+  its own credentials.
+- Request bodies are no longer part of `repr()`. A failed password login
+  left the password in a local variable's repr, which error trackers that
+  capture local variables (Sentry and others) would record.
+- An `ssl.SSLContext` passed as `verify` must require certificates and check
+  hostnames; one that does not is refused, like `verify=False`.
+- Only `gzip, deflate` is offered in `Accept-Encoding`, and the header can
+  no longer be overridden. httpx would otherwise offer brotli or zstd when
+  those packages are installed, which can expand a small reply into
+  gigabytes before the size limit is checked.
+- New `max_request_time` (300 s by default, or twice the read timeout if
+  longer; `math.inf` disables it): the longest one request attempt may take.
+  Per-read timeouts alone never stop a site that sends a reply a byte at a
+  time. The async client enforces it over the whole request; the sync client
+  between the pieces of the reply, so at worst it ends one read timeout
+  later.
+- Requires Python 3.10.7 or later, the first 3.10 release that limits
+  conversion of huge numbers (CVE-2020-10735).
+
 ### Changed
 
+- **Downloads are limited to `/files/` and `/private/files/`** (see Security).
+- **Each request attempt is limited to `max_request_time`** (see Security).
 - **At most 10 requests are in flight at once by default.** Before, an
   `asyncio.gather` of hundreds of calls opened up to 100 connections to the
   site. Pass `max_concurrency=None` for the old behaviour.

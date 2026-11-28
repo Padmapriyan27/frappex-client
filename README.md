@@ -366,7 +366,12 @@ out of `str(error)`.
 - TLS verification cannot be disabled. For a private CA, pass `verify="/path/ca.pem"` or an `ssl.SSLContext`.
 - Redirects are never followed, so credentials cannot be forwarded to another host.
 - DocType and document names are percent-encoded; `.` and `..` are rejected.
-- `download` accepts only site-relative paths.
+- Downloads accept only `/files/...` and `/private/files/...`, so a `file_url`
+  from document data cannot make the client call an API route.
+- Each request attempt has an overall time limit (`max_request_time`, 300 s
+  by default), so a site that sends a reply very slowly cannot hang a worker.
+- Only gzip and deflate compression is offered, and `verify` must keep
+  certificate and hostname checks on.
 - Uploads are private by default.
 - Writes are never retried after a network error or 5xx. `GET` requests and HTTP 429 replies are.
 - Secrets are masked in `repr()` and never logged.

@@ -4,8 +4,10 @@ from __future__ import annotations
 
 import importlib.util
 import logging
+import math
 import os
 import ssl
+import time
 from collections.abc import Mapping
 from importlib.metadata import PackageNotFoundError, version
 from typing import Any
@@ -26,6 +28,10 @@ from .exceptions import (
 
 logger = logging.getLogger("frappex_client")
 
+# Longest a single request attempt may take, start to end, unless told
+# otherwise; raised to twice the read timeout when that is longer.
+DEFAULT_MAX_REQUEST_TIME = 300.0
+
 # Requests a client keeps in flight at once unless told otherwise: enough to
 # overlap network waits, few enough not to swamp a site's worker processes.
 DEFAULT_MAX_CONCURRENCY = 10
@@ -35,7 +41,6 @@ _READ_METHODS = frozenset({"GET", "HEAD"})
 
 DEFAULT_TIMEOUT = 30.0
 DEFAULT_MAX_RESPONSE_BYTES = 64 * 1024 * 1024
-CHUNK_SIZE = 64 * 1024
 
 try:
     _VERSION = version("frappex-client")
@@ -53,6 +58,11 @@ def _tls_setting(verify: ssl.SSLContext | str | os.PathLike[str] | None) -> ssl.
             "Pass the path of a CA bundle or an ssl.SSLContext for a private certificate."
         )
     if isinstance(verify, ssl.SSLContext):
+        if verify.verify_mode != ssl.CERT_REQUIRED or not verify.check_hostname:
+            raise ConfigurationError(
+                "The ssl.SSLContext given in verify must require certificates "
+                "(verify_mode=CERT_REQUIRED) and check hostnames."
+            )
         return verify
     if not isinstance(verify, str | os.PathLike):
         raise ConfigurationError("verify must be a CA bundle path or an ssl.SSLContext.")
@@ -83,8 +93,15 @@ class ClientCore:
         read_only: bool = False,
         max_concurrency: int | None = DEFAULT_MAX_CONCURRENCY,
         http2: bool = False,
+        max_request_time: float | None = None,
     ) -> None:
         """Validate every setting before any connection is made."""
+        if max_request_time is not None and (
+            isinstance(max_request_time, bool)
+            or not isinstance(max_request_time, int | float)
+            or not max_request_time > 0
+        ):
+            raise ConfigurationError("max_request_time must be a positive number of seconds.")
         if not isinstance(http2, bool):
             raise ConfigurationError("http2 must be True or False.")
         if http2 and importlib.util.find_spec("h2") is None:
@@ -114,11 +131,21 @@ class ClientCore:
         self._read_only = read_only
         self._max_concurrency = max_concurrency
         self._http2 = http2
+        if max_request_time is None:
+            read = timeout.read if isinstance(timeout, httpx.Timeout) else timeout
+            max_request_time = max(DEFAULT_MAX_REQUEST_TIME, 2 * read if read else 0)
+        self._max_request_time: float | None = (
+            None if math.isinf(max_request_time) else float(max_request_time)
+        )
         self._logged_in = False
         self._http_arguments: dict[str, Any] = {
             "base_url": self._base_url,
             "headers": {
                 "Accept": "application/json",
+                # Only encodings whose expansion stays modest: httpx would
+                # otherwise offer brotli or zstd when those packages are
+                # installed, and decompress a whole read at once.
+                "Accept-Encoding": "gzip, deflate",
                 "User-Agent": f"frappex-client/{_VERSION}",
                 **validate_extra_headers(headers),
                 **(auth.headers() if auth is not None else {}),
@@ -142,6 +169,27 @@ class ClientCore:
     def base_url(self) -> str:
         """Address of the Frappe site this client talks to."""
         return self._base_url
+
+    @property
+    def max_request_time(self) -> float | None:
+        """Longest one request attempt may take, in seconds; ``None`` if unlimited."""
+        return self._max_request_time
+
+    def _deadline(self) -> float | None:
+        """When the request starting now must be finished, on the monotonic clock."""
+        limit = self._max_request_time
+        return None if limit is None else time.monotonic() + limit
+
+    def _check_deadline(self, request: Request, deadline: float | None) -> None:
+        """Stop a request that has run past its deadline, such as a slow drip."""
+        if deadline is not None and time.monotonic() > deadline:
+            raise self._too_slow(request)
+
+    def _too_slow(self, request: Request) -> RequestTimeoutError:
+        return RequestTimeoutError(
+            f"{request.method} {request.path} took longer than max_request_time "
+            f"({self._max_request_time:g} s)."
+        )
 
     @property
     def http2(self) -> bool:

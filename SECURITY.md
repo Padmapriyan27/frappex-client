@@ -18,10 +18,22 @@ Only the latest release receives security fixes.
   site-relative paths and redirects are never followed.
 - `http://` is refused unless `allow_insecure_http=True` is passed.
 - TLS certificate verification cannot be turned off through the client's
-  arguments. A caller who supplies their own `transport` takes over TLS.
+  arguments: a boolean `verify` is refused, and so is an `ssl.SSLContext`
+  that does not require certificates and check hostnames. A caller who
+  supplies their own `transport` takes over TLS.
 - Secrets are not written to logs, `repr()` output or exception messages.
-- DocType names, document names and file paths are encoded or rejected so
-  they cannot address a different endpoint.
+  Request bodies, which can hold a login password, are kept out of `repr()`,
+  so error trackers that record local variables do not capture them.
+- DocType and document names are encoded, and method names must be dotted
+  identifiers, so they cannot address a different endpoint. Downloads accept
+  only Frappe's file locations, `/files/...` and `/private/files/...`: a
+  `file_url` taken from document data cannot point the client's credentials
+  at an API route.
+- Replies are bounded: by `max_response_bytes` (checked against the declared
+  length and while reading), by `max_request_time` per attempt (so a site
+  sending a reply very slowly cannot hold a worker), and by offering only
+  gzip and deflate compression. JSON nesting and huge numbers are handled
+  without unbounded recursion or precision loss.
 - A client created with `read_only=True` sends only GET and HEAD requests
   for data; anything else raises `ReadOnlyError` before it is sent.
 

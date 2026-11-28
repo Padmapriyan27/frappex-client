@@ -17,7 +17,6 @@ import httpx
 from . import _operations as ops
 from ._auth import Auth, PasswordAuth
 from ._base import (
-    CHUNK_SIZE,
     DEFAULT_MAX_CONCURRENCY,
     DEFAULT_MAX_RESPONSE_BYTES,
     DEFAULT_TIMEOUT,
@@ -72,6 +71,11 @@ class Client(ClientCore):
         max_concurrency: Most requests in flight at once (10 by default).
             Further requests wait for a free slot instead of failing, and the
             connection pool is sized to match. ``None`` removes the limit.
+        max_request_time: Longest one request attempt may take, from sending
+            to the last byte of the reply, in seconds. It stops a site that
+            sends a reply very slowly from holding the client forever. By
+            default 300, or twice the read ``timeout`` if that is longer;
+            ``math.inf`` removes it.
         http2: Offer HTTP/2, which lets many concurrent requests share one
             connection. Needs ``pip install "frappex-client[http2]"``. Sites
             that do not support it are spoken to over HTTP/1.1, and so is a
@@ -101,6 +105,7 @@ class Client(ClientCore):
         read_only: bool = False,
         max_concurrency: int | None = DEFAULT_MAX_CONCURRENCY,
         http2: bool = False,
+        max_request_time: float | None = None,
         transport: httpx.BaseTransport | None = None,
     ) -> None:
         """Validate the settings and prepare the connection pool."""
@@ -116,6 +121,7 @@ class Client(ClientCore):
             read_only=read_only,
             max_concurrency=max_concurrency,
             http2=http2,
+            max_request_time=max_request_time,
         )
         self._http = httpx.Client(transport=transport, **self._http_arguments)
         # Held only while a request is on the wire, never during a retry wait.
@@ -160,6 +166,7 @@ class Client(ClientCore):
             return self._send_now(request)
 
     def _send_now(self, request: Request) -> RawResponse:
+        deadline = self._deadline()
         try:
             with self._http.stream(
                 request.method, request.path, **self._request_arguments(request)
@@ -167,7 +174,8 @@ class Client(ClientCore):
                 self._check_declared_length(response.headers, self._max_response_bytes)
                 size = ResponseSize(self._max_response_bytes)
                 chunks: list[bytes] = []
-                for chunk in response.iter_bytes(CHUNK_SIZE):
+                for chunk in response.iter_bytes():
+                    self._check_deadline(request, deadline)
                     size.add(len(chunk))
                     chunks.append(chunk)
                 return RawResponse(
@@ -572,6 +580,7 @@ class Client(ClientCore):
         """Send ``request`` and write a successful body into ``target``."""
         self._refuse_writes(request)
         self._ensure_session()
+        deadline = self._deadline()
         with self._slots:
             try:
                 with self._http.stream(
@@ -580,7 +589,8 @@ class Client(ClientCore):
                     if response.status_code != 200:
                         size = ResponseSize(self._max_response_bytes)
                         body = bytearray()
-                        for chunk in response.iter_bytes(CHUNK_SIZE):
+                        for chunk in response.iter_bytes():
+                            self._check_deadline(request, deadline)
                             size.add(len(chunk))
                             body += chunk
                         decode(RawResponse(response.status_code, response.headers, bytes(body)))
@@ -591,7 +601,8 @@ class Client(ClientCore):
                     self._check_content_type(response.headers, content_type)
                     self._check_declared_length(response.headers, max_bytes)
                     size = ResponseSize(max_bytes)
-                    for chunk in response.iter_bytes(CHUNK_SIZE):
+                    for chunk in response.iter_bytes():
+                        self._check_deadline(request, deadline)
                         size.add(len(chunk))
                         target.write(chunk)
                     return size.total
