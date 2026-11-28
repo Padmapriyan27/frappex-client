@@ -354,7 +354,7 @@ out of `str(error)`.
 
 ```python
 with Client("https://erp.example.com", auth, read_only=True) as erp:
-    rows = list(erp.iter_list("Sales Invoice"))   # reads work
+    rows = list(erp.iter_list("Sales Invoice"))  # reads work
     erp.delete("Sales Invoice", rows[0]["name"])  # raises ReadOnlyError, nothing sent
 ```
 
