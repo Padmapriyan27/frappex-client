@@ -9,7 +9,9 @@ description = "Typed sync and async REST client for Frappe and ERPNext sites."
 readme = "README.md"
 license = "MIT"
 license-files = ["LICENSE"]
-requires-python = ">=3.10"
+# 3.10.7 is the first 3.10 release that limits int/str conversion of huge
+# numbers (CVE-2020-10735), which a hostile reply could otherwise abuse.
+requires-python = ">=3.10.7"
 authors = [{ name = "Padmapriyan N" }]
 maintainers = [{ name = "Padmapriyan N" }]
 keywords = ["frappe", "erpnext", "rest", "client", "async", "httpx"]

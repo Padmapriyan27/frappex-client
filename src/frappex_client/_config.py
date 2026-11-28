@@ -17,7 +17,9 @@ from .exceptions import ConfigurationError
 __all__ = ["RetryPolicy", "normalise_base_url", "validate_extra_headers"]
 
 _IDEMPOTENT_METHODS = frozenset({"GET"})
-_FORBIDDEN_HEADERS = frozenset({"authorization", "cookie", "content-length", "transfer-encoding"})
+_FORBIDDEN_HEADERS = frozenset(
+    {"authorization", "cookie", "content-length", "transfer-encoding", "accept-encoding"}
+)
 
 
 def normalise_base_url(base_url: str, *, allow_insecure_http: bool) -> str:

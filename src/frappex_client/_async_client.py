@@ -7,7 +7,7 @@ import contextlib
 import io
 import os
 import ssl
-from collections.abc import AsyncIterator, Iterable, Mapping, Sequence
+from collections.abc import AsyncIterator, Awaitable, Iterable, Mapping, Sequence
 from types import TracebackType
 from typing import Any, BinaryIO, Literal, TypeVar
 
@@ -16,7 +16,6 @@ import httpx
 from . import _operations as ops
 from ._auth import Auth, PasswordAuth
 from ._base import (
-    CHUNK_SIZE,
     DEFAULT_MAX_CONCURRENCY,
     DEFAULT_MAX_RESPONSE_BYTES,
     DEFAULT_TIMEOUT,
@@ -36,6 +35,7 @@ from .exceptions import (
 from .types import BulkUpdateFailure, Document, Filters, ReportResult
 
 T = TypeVar("T")
+R = TypeVar("R")
 
 
 class AsyncClient(ClientCore):
@@ -72,6 +72,11 @@ class AsyncClient(ClientCore):
         max_concurrency: Most requests in flight at once (10 by default).
             Further requests wait for a free slot instead of failing, and the
             connection pool is sized to match. ``None`` removes the limit.
+        max_request_time: Longest one request attempt may take, from sending
+            to the last byte of the reply, in seconds. It stops a site that
+            sends a reply very slowly from holding the client forever. By
+            default 300, or twice the read ``timeout`` if that is longer;
+            ``math.inf`` removes it.
         http2: Offer HTTP/2, which lets many concurrent requests share one
             connection. Needs ``pip install "frappex-client[http2]"``. Sites
             that do not support it are spoken to over HTTP/1.1, and so is a
@@ -101,6 +106,7 @@ class AsyncClient(ClientCore):
         read_only: bool = False,
         max_concurrency: int | None = DEFAULT_MAX_CONCURRENCY,
         http2: bool = False,
+        max_request_time: float | None = None,
         transport: httpx.AsyncBaseTransport | None = None,
     ) -> None:
         """Validate the settings and prepare the connection pool."""
@@ -116,6 +122,7 @@ class AsyncClient(ClientCore):
             read_only=read_only,
             max_concurrency=max_concurrency,
             http2=http2,
+            max_request_time=max_request_time,
         )
         self._http = httpx.AsyncClient(transport=transport, **self._http_arguments)
         # Held only while a request is on the wire, never during a retry wait.
@@ -157,7 +164,18 @@ class AsyncClient(ClientCore):
 
     async def _send(self, request: Request) -> RawResponse:
         async with self._slots:
-            return await self._send_now(request)
+            return await self._within_deadline(request, self._send_now(request))
+
+    async def _within_deadline(self, request: Request, work: Awaitable[R]) -> R:
+        """Run ``work``, stopping it when the request takes too long overall.
+
+        This covers a reply whose headers or body arrive a byte at a time,
+        which per-read timeouts alone never stop.
+        """
+        try:
+            return await asyncio.wait_for(work, self._max_request_time)
+        except asyncio.TimeoutError:
+            raise self._too_slow(request) from None
 
     async def _send_now(self, request: Request) -> RawResponse:
         try:
@@ -167,7 +185,7 @@ class AsyncClient(ClientCore):
                 self._check_declared_length(response.headers, self._max_response_bytes)
                 size = ResponseSize(self._max_response_bytes)
                 chunks: list[bytes] = []
-                async for chunk in response.aiter_bytes(CHUNK_SIZE):
+                async for chunk in response.aiter_bytes():
                     size.add(len(chunk))
                     chunks.append(chunk)
                 return RawResponse(
@@ -577,7 +595,8 @@ class AsyncClient(ClientCore):
         """Send ``request`` and write a successful body into ``target``."""
         self._refuse_writes(request)
         await self._ensure_session()
-        async with self._slots:
+
+        async def stream() -> int:
             try:
                 async with self._http.stream(
                     request.method, request.path, **self._request_arguments(request)
@@ -585,7 +604,7 @@ class AsyncClient(ClientCore):
                     if response.status_code != 200:
                         size = ResponseSize(self._max_response_bytes)
                         body = bytearray()
-                        async for chunk in response.aiter_bytes(CHUNK_SIZE):
+                        async for chunk in response.aiter_bytes():
                             size.add(len(chunk))
                             body += chunk
                         decode(RawResponse(response.status_code, response.headers, bytes(body)))
@@ -596,12 +615,15 @@ class AsyncClient(ClientCore):
                     self._check_content_type(response.headers, content_type)
                     self._check_declared_length(response.headers, max_bytes)
                     size = ResponseSize(max_bytes)
-                    async for chunk in response.aiter_bytes(CHUNK_SIZE):
+                    async for chunk in response.aiter_bytes():
                         size.add(len(chunk))
                         target.write(chunk)
                     return size.total
             except httpx.HTTPError as exc:
                 raise self._transport_error(request, exc) from exc
+
+        async with self._slots:
+            return await self._within_deadline(request, stream())
 
     async def download(self, file_url: str) -> bytes:
         """Return a file's contents, up to ``max_response_bytes``.

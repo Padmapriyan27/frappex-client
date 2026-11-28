@@ -77,8 +77,10 @@ class Request:
     method: HTTPMethod
     path: str
     params: Mapping[str, str] = field(default_factory=dict)
-    json: Any = None
-    form: Mapping[str, str] | None = None
+    # Bodies can hold a password (login) or personal data, so they are kept
+    # out of repr(), which error trackers record with local variables.
+    json: Any = field(default=None, repr=False)
+    form: Mapping[str, str] | None = field(default=None, repr=False)
     file: tuple[str, bytes] | None = field(default=None, repr=False)
 
 
@@ -123,20 +125,30 @@ def method_path(method: str) -> str:
     return f"/api/method/{method}"
 
 
+# Where Frappe serves stored files from.
+_FILE_PREFIXES = ("/files/", "/private/files/")
+
+
 def file_path(file_url: str) -> str:
     """Return a safe request path for a file stored on the site.
 
-    Only site-relative locations are accepted, so a file URL taken from a
-    document can never send the caller's credentials to another host.
+    Only Frappe's own file locations, ``/files/...`` and
+    ``/private/files/...``, are accepted. A ``file_url`` comes from document
+    data that other users can edit, so anything else (another host, or an API
+    route such as ``/api/resource/User/Administrator``) is refused: the
+    caller's credentials are never used for a request the caller did not mean
+    to make.
 
     Raises:
-        ConfigurationError: ``file_url`` is absolute, protocol-relative or
-            tries to climb out of its directory.
+        ConfigurationError: ``file_url`` is not under ``/files/`` or
+            ``/private/files/``, or tries to climb out of its directory.
     """
     if not isinstance(file_url, str) or not file_url.startswith("/"):
         raise ConfigurationError("file_url must be a site-relative path starting with '/'.")
     if file_url.startswith("//") or "\\" in file_url or "?" in file_url or "#" in file_url:
         raise ConfigurationError("file_url must be a plain site-relative path.")
+    if not file_url.startswith(_FILE_PREFIXES):
+        raise ConfigurationError("file_url must be a stored file under /files/ or /private/files/.")
     segments = file_url.split("/")
     if any(segment in {".", ".."} for segment in segments):
         raise ConfigurationError("file_url must not contain '.' or '..' segments.")
