@@ -9,6 +9,7 @@ implementation of the Frappe API.
 from __future__ import annotations
 
 import json
+import re
 from collections.abc import Callable, Iterable, Mapping, Sequence
 from dataclasses import dataclass
 from typing import Any, Generic, Literal, TypeVar
@@ -481,3 +482,148 @@ def pdf_request(
     optional = {"format": print_format, "letterhead": letterhead, "language": language}
     params.update({key: value for key, value in optional.items() if value is not None})
     return Request("GET", method_path("frappe.utils.print_format.download_pdf"), params=params)
+
+
+# Field names keyset paging can request safely: plain columns, or every field.
+_PLAIN_FIELD = re.compile(r"[A-Za-z_][A-Za-z0-9_]*")
+_KEYSET_FIELDS = ("name", "creation")
+
+
+def _as_filter_list(filters: Filters | None) -> list[Any]:
+    """Return ``filters`` as a list, the way Frappe's ``make_filter_tuple`` reads a dict."""
+    if filters is None:
+        return []
+    if isinstance(filters, Mapping):
+        return [
+            [key, value[0], value[1]] if isinstance(value, list | tuple) else [key, "=", value]
+            for key, value in filters.items()
+        ]
+    return [list(condition) for condition in filters]
+
+
+class ListPager:
+    """Plans the requests of ``iter_list`` and filters their rows.
+
+    With the default order and plain field names it pages by *keyset*: each
+    request asks for rows whose ``creation`` is at or after the last one
+    returned, so the database seeks through the index instead of skipping
+    ``offset`` rows, and every page costs the same. Rows that share the last
+    ``creation`` value and were already returned are recognised by name and
+    dropped, so ties are handled exactly whatever the database's collation.
+    Any other order, or computed or child-table fields, falls back to offset
+    paging, which gives the same rows as before.
+
+    The pager does no I/O: :meth:`next_operation` describes the next request
+    and :meth:`accept` takes its rows, so both clients share it.
+    """
+
+    def __init__(
+        self,
+        doctype: str,
+        *,
+        fields: Sequence[str] | None,
+        filters: Filters | None,
+        or_filters: Filters | None,
+        order_by: str | None,
+        page_size: int,
+        parent: str | None,
+    ) -> None:
+        """Validate the arguments and choose keyset or offset paging."""
+        if isinstance(page_size, bool) or page_size < 1:
+            raise ConfigurationError("page_size must be at least 1.")
+        if isinstance(fields, str):
+            raise ConfigurationError("fields must be a list of field names, not a string.")
+        self._doctype = doctype
+        self._or_filters = or_filters
+        self._parent = parent
+        self._page_size = page_size
+        self.done = False
+        self._keyset = order_by is None and (
+            fields is None or all(f == "*" or _PLAIN_FIELD.fullmatch(f) for f in fields)
+        )
+        if self._keyset:
+            wanted = list(fields) if fields is not None else ["name"]
+            every = "*" in wanted
+            self._added = [] if every else [f for f in _KEYSET_FIELDS if f not in wanted]
+            self._fields: list[str] | None = wanted + self._added
+            self._filters: Filters | None = _as_filter_list(filters)
+            self._order_by = STABLE_ORDER
+        else:
+            self._added = []
+            self._fields = list(fields) if fields is not None else None
+            self._filters = filters
+            self._order_by = order_by or STABLE_ORDER
+        self._offset = 0
+        self._last_creation: Any = None
+        self._seen_at_last: set[str] = set()
+
+    @property
+    def keyset(self) -> bool:
+        """Whether this iteration pages by keyset rather than by offset."""
+        return self._keyset
+
+    def next_operation(self) -> Operation[list[Document]]:
+        """Describe the request for the next page."""
+        if not self._keyset:
+            return get_list(
+                self._doctype,
+                fields=self._fields,
+                filters=self._filters,
+                or_filters=self._or_filters,
+                order_by=self._order_by,
+                limit=self._page_size,
+                offset=self._offset,
+                parent=self._parent,
+            )
+        filters = list(self._filters or [])
+        if self._last_creation is not None:
+            filters.append(["creation", ">=", self._last_creation])
+        return get_list(
+            self._doctype,
+            fields=self._fields,
+            filters=filters,
+            or_filters=self._or_filters,
+            order_by=self._order_by,
+            # Rows already returned at the boundary come back first; asking
+            # for that many more guarantees every page makes progress.
+            limit=self._page_size + len(self._seen_at_last),
+            offset=0,
+            parent=self._parent,
+        )
+
+    def accept(self, rows: list[Document]) -> list[Document]:
+        """Take a page's rows and return the ones to hand to the caller."""
+        if not self._keyset:
+            self._offset += self._page_size
+            self.done = len(rows) < self._page_size
+            return rows
+        limit = self._page_size + len(self._seen_at_last)
+        self.done = len(rows) < limit
+        fresh = []
+        for row in rows:
+            creation, name = row.get("creation"), row.get("name")
+            if creation is None or name is None:
+                raise UnexpectedResponseError(
+                    "A listed row has no name or creation, so paging cannot continue.",
+                    status_code=200,
+                )
+            if creation == self._last_creation and str(name) in self._seen_at_last:
+                continue
+            fresh.append(row)
+        if fresh:
+            newest = fresh[-1]["creation"]
+            at_newest = {str(row["name"]) for row in fresh if row["creation"] == newest}
+            if newest == self._last_creation:
+                self._seen_at_last |= at_newest
+            else:
+                self._last_creation, self._seen_at_last = newest, at_newest
+        elif not self.done:
+            # A full page of rows already returned can only mean the site
+            # ignored the filter; stop rather than loop.
+            raise UnexpectedResponseError(
+                "The site returned the same rows again, so paging cannot continue.",
+                status_code=200,
+            )
+        if self._added:
+            fresh = [{k: v for k, v in row.items() if k not in self._added} for row in fresh]
+        return fresh

@@ -79,6 +79,13 @@ frappe --site "$site" set-config host_name "http://$site:$port"
 env_file="$work/test.env"
 (cd "$work/sites" && "$work/env/bin/python" "$script_dir/provision_site.py" "$site" "$port" "$env_file")
 echo "FRAPPEX_TEST_PASSWORD=$admin_password" >> "$env_file"
+# Lets a test change data the API deliberately protects (such as creation
+# timestamps) directly in this throwaway site's database.
+{
+    echo "FRAPPEX_TEST_BENCH_PYTHON=$work/env/bin/python"
+    echo "FRAPPEX_TEST_SITES_PATH=$work/sites"
+    echo "FRAPPEX_TEST_SITE=$site"
+} >> "$env_file"
 
 (cd "$work/sites" && nohup "$work/env/bin/python" -m frappe.utils.bench_helper frappe \
     --site "$site" serve --port "$port" --noreload > "$work/logs/serve.log" 2>&1 &)

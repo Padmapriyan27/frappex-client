@@ -12,6 +12,7 @@ from __future__ import annotations
 
 import contextlib
 import os
+import subprocess
 import uuid
 from collections.abc import Iterator
 from typing import Any
@@ -26,6 +27,12 @@ SECRET = os.environ.get("FRAPPEX_TEST_API_SECRET", "")
 HOST = os.environ.get("FRAPPEX_TEST_HOST_HEADER", "")
 USERNAME = os.environ.get("FRAPPEX_TEST_USERNAME", "")
 PASSWORD = os.environ.get("FRAPPEX_TEST_PASSWORD", "")
+BENCH_PYTHON = os.environ.get("FRAPPEX_TEST_BENCH_PYTHON", "")
+SITES_PATH = os.environ.get("FRAPPEX_TEST_SITES_PATH", "")
+SITE = os.environ.get("FRAPPEX_TEST_SITE", "")
+SET_CREATION = os.path.join(
+    os.path.dirname(__file__), "..", "..", "scripts", "ci", "set_creation.py"
+)
 
 CONFIGURED = bool(URL and KEY and SECRET)
 
@@ -112,3 +119,23 @@ def doctype(client: Client) -> Iterator[str]:
             with contextlib.suppress(NotFoundError):
                 client.delete(name, row["name"])
         client.delete("DocType", name)
+
+
+def set_creation(doctype: str, names: list[str], timestamp: str) -> None:
+    """Give documents one creation timestamp, directly in the test site's database.
+
+    Skips the test when the site's own Python is not available (only the
+    throwaway CI site exposes it), because the API refuses this change.
+    """
+    if not (BENCH_PYTHON and SITES_PATH and SITE):
+        pytest.skip(
+            "needs FRAPPEX_TEST_BENCH_PYTHON, FRAPPEX_TEST_SITES_PATH and FRAPPEX_TEST_SITE"
+        )
+    # A fixed argument list, no shell; the program is the site's Python named
+    # by the test operator's own settings.
+    subprocess.run(  # noqa: S603
+        [BENCH_PYTHON, os.path.abspath(SET_CREATION), SITE, doctype, timestamp, *names],
+        cwd=SITES_PATH,
+        check=True,
+        timeout=120,
+    )
