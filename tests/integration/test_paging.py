@@ -3,41 +3,43 @@
 from __future__ import annotations
 
 import asyncio
+import uuid
 from collections import Counter
+from collections.abc import Iterator
+
+import pytest
 
 from frappex_client import AsyncClient, Client
 
-from .conftest import OPTIONS, URL, token_auth
+from .conftest import OPTIONS, URL, set_creation, token_auth
 
-ROWS = 250
-TIED = 120
+ROWS = 120
+TIED = 60
 
 
 def like(marker: str) -> dict[str, list[str]]:
     return {"description": ["like", f"%{marker}%"]}
 
 
-def make_tied_rows(client: Client, marker: str) -> list[str]:
-    """Create rows, then give TIED of them one identical creation timestamp."""
+@pytest.fixture(scope="module")
+def tied(client: Client) -> Iterator[tuple[str, list[str]]]:
+    """ROWS ToDos, TIED of which share one creation timestamp."""
+    marker = f"frappex-paging-{uuid.uuid4().hex}"
     names = client.insert_many("ToDo", [{"description": f"{marker} {i:03d}"} for i in range(ROWS)])
-    tie = client.get_value("ToDo", "creation", names[0])
-    assert tie is not None
-    failures = client.bulk_update(
-        "ToDo", {name: {"creation": tie["creation"]} for name in names[:TIED]}
-    )
-    assert failures == []
-    counts = Counter(
-        row["creation"]
-        for row in client.get_list("ToDo", fields=["creation"], filters=like(marker), limit=ROWS)
-    )
-    assert counts.most_common(1)[0][1] >= TIED, "the site did not store the tied timestamps"
-    return names
+    try:
+        first = client.get_value("ToDo", "creation", names[0])
+        assert first is not None
+        set_creation("ToDo", names[:TIED], first["creation"])
+        rows = client.get_list("ToDo", fields=["creation"], filters=like(marker), limit=ROWS)
+        assert Counter(row["creation"] for row in rows).most_common(1)[0][1] == TIED
+        yield marker, names
+    finally:
+        for name in names:
+            client.delete("ToDo", name)
 
 
-def test_keyset_paging_returns_every_row_once_in_the_sites_order(
-    client: Client, marker: str
-) -> None:
-    names = make_tied_rows(client, marker)
+def test_every_row_once_in_the_sites_order(client: Client, tied: tuple[str, list[str]]) -> None:
+    marker, names = tied
     # The site's own order for the same query, in one request.
     expected = [
         row["name"]
@@ -46,17 +48,18 @@ def test_keyset_paging_returns_every_row_once_in_the_sites_order(
         )
     ]
 
-    paged = [row["name"] for row in client.iter_list("ToDo", filters=like(marker), page_size=25)]
+    # Pages of 10 inside a tie group of 60 rows.
+    paged = [row["name"] for row in client.iter_list("ToDo", filters=like(marker), page_size=10)]
 
     assert len(paged) == len(set(paged)) == ROWS
     assert set(paged) == set(names)
     assert paged == expected
 
 
-def test_fields_and_offset_fallback_match(client: Client, marker: str) -> None:
-    make_tied_rows(client, marker)
+def test_only_the_requested_fields_come_back(client: Client, tied: tuple[str, list[str]]) -> None:
+    marker, _ = tied
     keyset = list(
-        client.iter_list("ToDo", fields=["description"], filters=like(marker), page_size=30)
+        client.iter_list("ToDo", fields=["description"], filters=like(marker), page_size=25)
     )
     offset = list(
         client.iter_list(
@@ -64,23 +67,21 @@ def test_fields_and_offset_fallback_match(client: Client, marker: str) -> None:
             fields=["description"],
             filters=like(marker),
             order_by="creation asc, name asc",
-            page_size=30,
+            page_size=25,
         )
     )
     assert all(set(row) == {"description"} for row in keyset)
-    assert sorted(r["description"] for r in keyset) == sorted(r["description"] for r in offset)
-    assert len(keyset) == ROWS
+    assert keyset == offset
 
 
-def test_async_keyset_paging(client: Client, marker: str) -> None:
-    make_tied_rows(client, marker)
+def test_async_keyset_paging(tied: tuple[str, list[str]]) -> None:
+    marker, names = tied
 
     async def scenario() -> list[str]:
         async with AsyncClient(URL, token_auth(), **OPTIONS) as live:
             return [
                 row["name"]
-                async for row in live.iter_list("ToDo", filters=like(marker), page_size=40)
+                async for row in live.iter_list("ToDo", filters=like(marker), page_size=7)
             ]
 
-    names = asyncio.run(scenario())
-    assert len(names) == len(set(names)) == ROWS
+    assert sorted(asyncio.run(scenario())) == sorted(names)
