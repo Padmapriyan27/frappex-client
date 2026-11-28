@@ -15,6 +15,17 @@ All notable changes are recorded here. The format follows
   reports and downloads work, and password login is unaffected. The
   `read_only` property reports the setting.
 
+### Changed
+
+- `iter_list` pages by keyset with its default order and plain field names:
+  each request asks for rows created at or after the last one seen, instead
+  of skipping `offset` rows. Every page costs the same however deep the
+  iteration goes (offset paging makes the database step over every earlier
+  row), and rows created or deleted during the iteration no longer shift
+  pages. Rows sharing a `creation` timestamp are handled exactly. A custom
+  `order_by`, or computed or child-table fields, keep offset paging. The
+  rows returned and their order are unchanged.
+
 ## [0.2.0] - 2026-11-26
 
 ### Removed

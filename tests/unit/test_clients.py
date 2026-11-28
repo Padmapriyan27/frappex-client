@@ -76,14 +76,14 @@ class TestRequests:
         with pytest.raises(ConfigurationError):
             site.run(lambda c: c.get_list("ToDo", fields="name"))
 
-    def test_iter_list_walks_every_page_in_stable_order(self, site: Site) -> None:
+    def test_iter_list_with_a_custom_order_pages_by_offset(self, site: Site) -> None:
         site.reply(body={"data": [{"name": "1"}, {"name": "2"}]})
         site.reply(body={"data": [{"name": "3"}, {"name": "4"}]})
         site.reply(body={"data": [{"name": "5"}]})
-        rows = site.run(lambda c: c.iter_list("ToDo", page_size=2))
+        rows = site.run(lambda c: c.iter_list("ToDo", page_size=2, order_by="modified desc"))
         assert [row["name"] for row in rows] == ["1", "2", "3", "4", "5"]
         assert [r.url.params["limit_start"] for r in site.requests] == ["0", "2", "4"]
-        assert site.requests[0].url.params["order_by"] == "creation asc, name asc"
+        assert site.requests[0].url.params["order_by"] == "modified desc"
 
     def test_insert_update_delete(self, site: Site) -> None:
         site.reply(body={"data": {"name": "T1", "description": "x"}})

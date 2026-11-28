@@ -254,26 +254,25 @@ class Client(ClientCore):
     ) -> Iterator[Document]:
         """Yield every matching document, fetching ``page_size`` rows at a time.
 
-        Rows are ordered by creation time unless ``order_by`` is given, so
-        that documents edited during the iteration are not skipped or
-        repeated. Rows created or deleted meanwhile can still shift pages.
+        Rows come in creation order unless ``order_by`` is given. With that
+        default order and plain field names, pages are read by keyset (rows
+        created at or after the last one seen), so each page costs the same
+        however deep the iteration goes, and rows edited, created or deleted
+        meanwhile cannot shift a page. A custom ``order_by``, or computed or
+        child-table fields, uses offset paging instead.
         """
-        offset = 0
-        while True:
-            page = self.get_list(
-                doctype,
-                fields=fields,
-                filters=filters,
-                or_filters=or_filters,
-                order_by=order_by or ops.STABLE_ORDER,
-                limit=page_size,
-                offset=offset,
-                parent=parent,
-            )
-            yield from page
-            if len(page) < page_size:
-                return
-            offset += page_size
+        pager = ops.ListPager(
+            doctype,
+            fields=fields,
+            filters=filters,
+            or_filters=or_filters,
+            order_by=order_by,
+            page_size=page_size,
+            parent=parent,
+        )
+        while not pager.done:
+            rows = self._execute(pager.next_operation())
+            yield from pager.accept(rows)
 
     def get_doc(self, doctype: str, name: str) -> Document:
         """Return one document.

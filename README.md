@@ -206,7 +206,7 @@ except FrappexError:
 
 - Sync (`Client`) and async (`AsyncClient`) with identical methods
 - API key, OAuth bearer token, username/password, or guest access
-- Automatic pagination with `iter_list`
+- Automatic pagination with `iter_list`, by keyset so deep pages stay fast
 - Bulk insert and update in batches, with clear partial-failure reporting
 - A read-only mode that refuses writes before they leave your machine
 - Query, Script and Custom Reports as columns and rows keyed by field name
