@@ -28,6 +28,7 @@ from ._protocol import RawResponse, Request, decode, file_path, parse_retry_afte
 from .exceptions import (
     BulkOperationError,
     FrappexError,
+    ReadOnlyError,
     TransportError,
     UnexpectedResponseError,
 )
@@ -66,6 +67,12 @@ class Client(ClientCore):
         transport: An ``httpx`` transport to use instead of the default, for
             tests or custom networking. It then owns TLS, so ``verify`` no
             longer applies.
+        read_only: Refuse every request that could change data: inserts,
+            updates, deletes, submit, cancel, rename, uploads and methods
+            called by POST raise :class:`~frappex_client.ReadOnlyError`
+            before anything is sent. Reads, reports and downloads work. This
+            guards your own code; the API user's roles on the site remain
+            the real limit.
 
     Raises:
         ConfigurationError: A setting is malformed or unsafe.
@@ -82,6 +89,7 @@ class Client(ClientCore):
         allow_insecure_http: bool = False,
         max_response_bytes: int = DEFAULT_MAX_RESPONSE_BYTES,
         headers: Mapping[str, str] | None = None,
+        read_only: bool = False,
         transport: httpx.BaseTransport | None = None,
     ) -> None:
         """Validate the settings and prepare the connection pool."""
@@ -94,6 +102,7 @@ class Client(ClientCore):
             allow_insecure_http=allow_insecure_http,
             max_response_bytes=max_response_bytes,
             headers=headers,
+            read_only=read_only,
         )
         self._http = httpx.Client(transport=transport, **self._http_arguments)
         self._login_lock = threading.Lock()
@@ -174,6 +183,7 @@ class Client(ClientCore):
                     self._logged_in = True
 
     def _execute(self, operation: ops.Operation[T]) -> T:
+        self._refuse_writes(operation.request)
         self._ensure_session()
         return self._run(operation)
 
@@ -365,6 +375,8 @@ class Client(ClientCore):
         for start, batch in ops.batches(prepared, batch_size):
             try:
                 saved = self._execute(ops.insert_many(batch))
+            except ReadOnlyError:
+                raise
             except FrappexError as exc:
                 raise BulkOperationError(
                     completed=names, failures=[], failed_at=start, error=exc
@@ -409,6 +421,8 @@ class Client(ClientCore):
         for start, batch in ops.batches(prepared, batch_size):
             try:
                 failed = self._execute(ops.bulk_update(doctype, batch))
+            except ReadOnlyError:
+                raise
             except FrappexError as exc:
                 raise BulkOperationError(
                     completed=completed, failures=failures, failed_at=start, error=exc
@@ -523,6 +537,7 @@ class Client(ClientCore):
         content_type: str | None = None,
     ) -> int:
         """Send ``request`` and write a successful body into ``target``."""
+        self._refuse_writes(request)
         self._ensure_session()
         try:
             with self._http.stream(

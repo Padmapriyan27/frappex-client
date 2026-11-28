@@ -22,6 +22,8 @@ Only the latest release receives security fixes.
 - Secrets are not written to logs, `repr()` output or exception messages.
 - DocType names, document names and file paths are encoded or rejected so
   they cannot address a different endpoint.
+- A client created with `read_only=True` sends only GET and HEAD requests
+  for data; anything else raises `ReadOnlyError` before it is sent.
 
 ## Out of scope
 
