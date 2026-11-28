@@ -28,6 +28,19 @@ from .exceptions import (
 )
 from .types import HTTPMethod
 
+# Optional faster decoder: pip install "frappex-client[speedups]".
+_orjson: Any
+try:
+    import orjson as _orjson
+except ImportError:  # pragma: no cover - exercised by the tests via monkeypatch
+    _orjson = None
+
+# orjson turns integers beyond 64 bits into floats, silently losing digits.
+# Such a number has at least 19 digits; a body with any run of 19 digits
+# (found in C by mapping every digit to "0") is left to the json module.
+_DIGITS_TO_ZERO = bytes.maketrans(b"123456789", b"000000000")
+_LONG_DIGIT_RUN = b"0" * 19
+
 __all__ = [
     "RawResponse",
     "Request",
@@ -143,7 +156,22 @@ def parse_retry_after(headers: Mapping[str, str]) -> float | None:
 
 
 def _load_json(body: bytes | str) -> Any:
-    """Parse JSON, returning ``None`` for anything that is not valid JSON."""
+    """Parse JSON, returning ``None`` for anything that is not valid JSON.
+
+    orjson is used when installed. It refuses some input the standard
+    library accepts (a lone surrogate, ``NaN``, very deep nesting) and would
+    round integers beyond 64 bits, so such a body goes to :mod:`json` and the
+    result is always the same as without orjson.
+    """
+    if (
+        _orjson is not None
+        and isinstance(body, bytes)
+        and _LONG_DIGIT_RUN not in body.translate(_DIGITS_TO_ZERO)
+    ):
+        try:
+            return _orjson.loads(body)
+        except _orjson.JSONDecodeError:
+            pass
     try:
         return json.loads(body)
     except (ValueError, UnicodeDecodeError, RecursionError):

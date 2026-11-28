@@ -169,6 +169,19 @@ set -a && . /tmp/frappex-bench/test.env && set +a
 uv run pytest tests/integration
 ```
 
+## Benchmarks
+
+`benchmarks/client_overhead.py` measures the time the library itself adds
+to a call, with the network replaced by an instant in-memory site:
+
+```bash
+uv run python benchmarks/client_overhead.py                 # orjson if installed
+uv run python benchmarks/client_overhead.py --no-speedups   # standard json
+```
+
+Report the best of several runs and compare like with like on the same
+machine; a change that does not beat the run-to-run noise is not kept.
+
 ## Continuous integration
 
 GitHub is the canonical repository; the GitLab pipeline mirrors the core
