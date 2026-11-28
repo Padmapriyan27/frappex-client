@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import importlib.util
 import logging
 import os
 import ssl
@@ -81,8 +82,15 @@ class ClientCore:
         headers: Mapping[str, str] | None,
         read_only: bool = False,
         max_concurrency: int | None = DEFAULT_MAX_CONCURRENCY,
+        http2: bool = False,
     ) -> None:
         """Validate every setting before any connection is made."""
+        if not isinstance(http2, bool):
+            raise ConfigurationError("http2 must be True or False.")
+        if http2 and importlib.util.find_spec("h2") is None:
+            raise ConfigurationError(
+                'http2=True needs the h2 package: pip install "frappex-client[http2]"'
+            )
         if max_concurrency is not None and (
             isinstance(max_concurrency, bool)
             or not isinstance(max_concurrency, int)
@@ -105,6 +113,7 @@ class ClientCore:
         self._max_response_bytes = max_response_bytes
         self._read_only = read_only
         self._max_concurrency = max_concurrency
+        self._http2 = http2
         self._logged_in = False
         self._http_arguments: dict[str, Any] = {
             "base_url": self._base_url,
@@ -119,6 +128,8 @@ class ClientCore:
             # Never follow redirects: a redirect to another host would carry
             # the Authorization header or session cookie with it.
             "follow_redirects": False,
+            # Negotiated per connection (ALPN); falls back to HTTP/1.1.
+            "http2": http2,
         }
         if max_concurrency is not None:
             # As many pooled connections as requests may be in flight, so a
@@ -131,6 +142,11 @@ class ClientCore:
     def base_url(self) -> str:
         """Address of the Frappe site this client talks to."""
         return self._base_url
+
+    @property
+    def http2(self) -> bool:
+        """Whether the client offers HTTP/2 to the site."""
+        return self._http2
 
     @property
     def max_concurrency(self) -> int | None:

@@ -72,6 +72,10 @@ class AsyncClient(ClientCore):
         max_concurrency: Most requests in flight at once (10 by default).
             Further requests wait for a free slot instead of failing, and the
             connection pool is sized to match. ``None`` removes the limit.
+        http2: Offer HTTP/2, which lets many concurrent requests share one
+            connection. Needs ``pip install "frappex-client[http2]"``. Sites
+            that do not support it are spoken to over HTTP/1.1, and so is a
+            plain ``http://`` site.
         read_only: Refuse every request that could change data: inserts,
             updates, deletes, submit, cancel, rename, uploads and methods
             called by POST raise :class:`~frappex_client.ReadOnlyError`
@@ -96,6 +100,7 @@ class AsyncClient(ClientCore):
         headers: Mapping[str, str] | None = None,
         read_only: bool = False,
         max_concurrency: int | None = DEFAULT_MAX_CONCURRENCY,
+        http2: bool = False,
         transport: httpx.AsyncBaseTransport | None = None,
     ) -> None:
         """Validate the settings and prepare the connection pool."""
@@ -110,6 +115,7 @@ class AsyncClient(ClientCore):
             headers=headers,
             read_only=read_only,
             max_concurrency=max_concurrency,
+            http2=http2,
         )
         self._http = httpx.AsyncClient(transport=transport, **self._http_arguments)
         # Held only while a request is on the wire, never during a retry wait.
@@ -164,7 +170,12 @@ class AsyncClient(ClientCore):
                 async for chunk in response.aiter_bytes(CHUNK_SIZE):
                     size.add(len(chunk))
                     chunks.append(chunk)
-                return RawResponse(response.status_code, response.headers, b"".join(chunks))
+                return RawResponse(
+                    response.status_code,
+                    response.headers,
+                    b"".join(chunks),
+                    response.http_version,
+                )
         except httpx.HTTPError as exc:
             raise self._transport_error(request, exc) from exc
 
@@ -180,7 +191,13 @@ class AsyncClient(ClientCore):
                 if delay is None:
                     raise
             else:
-                logger.debug("%s %s -> %s", request.method, request.path, response.status_code)
+                logger.debug(
+                    "%s %s -> %s (%s)",
+                    request.method,
+                    request.path,
+                    response.status_code,
+                    response.http_version,
+                )
                 delay = self._retry.delay_after_response(
                     request.method,
                     attempt,

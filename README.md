@@ -228,6 +228,19 @@ runs in CI against both on every change. Frappe 14 is no longer supported.
 pip install frappex-client
 ```
 
+For HTTP/2, which lets many concurrent requests share one connection,
+install the optional extra and pass `http2=True`:
+
+```bash
+pip install "frappex-client[http2]"
+```
+
+```python
+client = AsyncClient("https://erp.example.com", auth, http2=True)
+```
+
+Sites that do not offer HTTP/2 are spoken to over HTTP/1.1.
+
 ## Quick start
 
 ```python
