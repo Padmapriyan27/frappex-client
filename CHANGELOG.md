@@ -22,6 +22,15 @@ All notable changes are recorded here. The format follows
   `max_concurrency=None` removes the limit. The `max_concurrency` property
   reports the setting.
 
+- Opt-in HTTP/2: `pip install "frappex-client[http2]"` and pass
+  `http2=True` to `Client` or `AsyncClient`. Concurrent requests then share
+  one connection; sites that do not offer HTTP/2, and plain `http://` sites,
+  are spoken to over HTTP/1.1. Without the extra, `http2=True` raises
+  `ConfigurationError` saying what to install. The default install still
+  depends only on `httpx`.
+- Debug log lines name the protocol each request used, for example
+  `GET /api/method/ping -> 200 (HTTP/2)`.
+
 ### Changed
 
 - **At most 10 requests are in flight at once by default.** Before, an

@@ -77,6 +77,9 @@ jobs:
       # --no-editable builds frappex-client and installs it like a user would,
       # so the live tests exercise the packaged library, not the source tree.
       - name: Run the integration tests against the built package
+        env:
+          # One guest ping to a public Frappe site that serves HTTP/2.
+          FRAPPEX_TEST_HTTP2_URL: https://frappe.io
         run: |
           uv run --locked --no-editable python -c 'import frappex_client, sys; path = frappex_client.__file__; print(path); sys.exit("site-packages" not in path)'
           uv run --locked --no-editable pytest tests/integration -v

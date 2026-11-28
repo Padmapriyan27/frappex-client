@@ -76,6 +76,7 @@ class RawResponse:
     status_code: int
     headers: Mapping[str, str]
     body: bytes = field(repr=False)
+    http_version: str = "HTTP/1.1"
 
 
 def _segment(value: str, what: str) -> str:
