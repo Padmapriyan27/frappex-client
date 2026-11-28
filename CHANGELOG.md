@@ -28,6 +28,13 @@ All notable changes are recorded here. The format follows
   are spoken to over HTTP/1.1. Without the extra, `http2=True` raises
   `ConfigurationError` saying what to install. The default install still
   depends only on `httpx`.
+- Opt-in faster JSON decoding: `pip install "frappex-client[speedups]"`
+  adds orjson, which is then used automatically. In the benchmark
+  (`benchmarks/client_overhead.py`), `get_list` of 100 rows and `iter_list`
+  spend about 35% less time in the library. Results are always identical to
+  the standard library: replies orjson would read differently (integers
+  beyond 64 bits, which it rounds, a lone surrogate, `NaN`, very deep
+  nesting) are decoded with `json`.
 - Debug log lines name the protocol each request used, for example
   `GET /api/method/ping -> 200 (HTTP/2)`.
 
