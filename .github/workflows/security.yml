@@ -27,7 +27,7 @@ jobs:
         with:
           python-version: "3.13"
       - run: uv export --locked --no-emit-project --output-file requirements-audit.txt
-      - run: uvx pip-audit --requirement requirements-audit.txt --disable-pip
+      - run: uvx pip-audit@2.10.1 --requirement requirements-audit.txt --disable-pip
 
   secret-scan:
     name: scan history for secrets

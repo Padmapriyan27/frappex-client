@@ -48,7 +48,7 @@ jobs:
           version="$(uv version --short)"
           test "$TAG" = "v$version" || { echo "tag $TAG does not match version $version"; exit 1; }
       - run: uv build
-      - run: uvx twine check --strict dist/*
+      - run: uvx twine@7.0.0 check --strict dist/*
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: dist

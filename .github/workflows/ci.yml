@@ -56,8 +56,8 @@ jobs:
         with:
           python-version: "3.13"
       - run: uv build
-      - run: uvx twine check --strict dist/*
-      - run: uvx check-wheel-contents dist/*.whl
+      - run: uvx twine@7.0.0 check --strict dist/*
+      - run: uvx check-wheel-contents@0.6.3 dist/*.whl
       - name: Install the wheel into a clean environment and import it
         run: |
           uv venv /tmp/wheel-check

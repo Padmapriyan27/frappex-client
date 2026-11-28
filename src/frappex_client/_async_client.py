@@ -83,12 +83,14 @@ class AsyncClient(ClientCore):
             connection. Needs ``pip install "frappex-client[http2]"``. Sites
             that do not support it are spoken to over HTTP/1.1, and so is a
             plain ``http://`` site.
-        read_only: Refuse every request that could change data: inserts,
+        read_only: Send only GET and HEAD requests for data. Inserts,
             updates, deletes, submit, cancel, rename, uploads and methods
             called by POST raise :class:`~frappex_client.ReadOnlyError`
-            before anything is sent. Reads, reports and downloads work. This
-            guards your own code; the API user's roles on the site remain
-            the real limit.
+            before anything is sent; reads, reports and downloads work.
+            Password login and logout are still sent. A whitelisted method
+            called with ``http_method="GET"`` runs as written, so one that
+            writes and accepts GET still writes. This guards your own code;
+            the API user's roles on the site remain the real limit.
 
     Raises:
         ConfigurationError: A setting is malformed or unsafe.

@@ -12,7 +12,9 @@ All notable changes are recorded here. The format follows
   could change data (inserts, updates, deletes, submit, cancel, rename,
   `set_value`, bulk writes, uploads and methods called by POST) with the new
   `ReadOnlyError`, before anything is sent. Reads, `call(..., http_method="GET")`,
-  reports and downloads work, and password login is unaffected. The
+  reports and downloads work, and password login and logout are still sent.
+  A whitelisted method called by GET runs as written, so one that writes and
+  accepts GET still writes: the API user's roles remain the real limit. The
   `read_only` property reports the setting.
 
 - `max_concurrency` on `Client` and `AsyncClient` (10 by default) caps how
