@@ -3,10 +3,14 @@
 from __future__ import annotations
 
 import asyncio
+import gzip
+import io
+import json
 import math
 import ssl
 import time
 import traceback
+import zlib
 from collections.abc import AsyncIterator, Iterator
 from typing import Any
 
@@ -21,6 +25,7 @@ from frappex_client import (
     PasswordAuth,
     RequestTimeoutError,
     RetryPolicy,
+    UnexpectedResponseError,
 )
 from frappex_client._protocol import Request, file_path
 
@@ -203,3 +208,53 @@ class TestDeadlineSetting:
     def test_must_be_positive(self, kind: Any, value: Any) -> None:
         with pytest.raises(ConfigurationError, match="max_request_time"):
             kind(URL, max_request_time=value)
+
+
+def untouchable() -> Iterator[bytes]:
+    raise AssertionError("the body was read")
+    yield b""  # pragma: no cover
+
+
+class TestReplyEncodings:
+    @pytest.mark.parametrize("encoding", ["br", "zstd", "gzip, br", "compress"])
+    def test_an_encoding_not_offered_is_refused_before_reading(self, encoding: str) -> None:
+        def handler(request: httpx.Request) -> httpx.Response:
+            return httpx.Response(
+                200, content=untouchable(), headers={"Content-Encoding": encoding}
+            )
+
+        transport = httpx.MockTransport(handler)
+        with Client(URL, transport=transport, retry=ONE_ATTEMPT) as client:
+            with pytest.raises(UnexpectedResponseError, match="Content-Encoding"):
+                client.ping()
+            with pytest.raises(UnexpectedResponseError, match="Content-Encoding"):
+                client.download("/files/a.bin")
+
+    def test_async_refuses_too(self) -> None:
+        async def handler(request: httpx.Request) -> httpx.Response:
+            return httpx.Response(200, content=b"x", headers={"Content-Encoding": "br"})
+
+        async def main() -> None:
+            async with AsyncClient(URL, transport=httpx.MockTransport(handler)) as client:
+                with pytest.raises(UnexpectedResponseError, match="Content-Encoding"):
+                    await client.ping()
+                with pytest.raises(UnexpectedResponseError, match="Content-Encoding"):
+                    await client.download_to("/files/a.bin", io.BytesIO())
+
+        asyncio.run(main())
+
+    @pytest.mark.parametrize("encoding", ["gzip", "deflate", "identity", "GZIP"])
+    def test_offered_encodings_are_decoded(self, encoding: str) -> None:
+        payload = json.dumps({"message": "pong"}).encode()
+        body = {
+            "gzip": gzip.compress(payload),
+            "GZIP": gzip.compress(payload),
+            "deflate": zlib.compress(payload),
+            "identity": payload,
+        }[encoding]
+
+        def handler(request: httpx.Request) -> httpx.Response:
+            return httpx.Response(200, content=body, headers={"Content-Encoding": encoding})
+
+        with Client(URL, transport=httpx.MockTransport(handler)) as client:
+            assert client.ping() == "pong"

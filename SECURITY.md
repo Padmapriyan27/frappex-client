@@ -31,8 +31,10 @@ Only the latest release receives security fixes.
   at an API route.
 - Replies are bounded: by `max_response_bytes` (checked against the declared
   length and while reading), by `max_request_time` per attempt (so a site
-  sending a reply very slowly cannot hold a worker), and by offering only
-  gzip and deflate compression. JSON nesting and huge numbers are handled
+  sending a reply very slowly cannot hold a worker; in the sync client this
+  covers the body, while headers are bounded by the read timeout and the HTTP
+  library's header size limit), and by offering and accepting only gzip and
+  deflate compression. JSON nesting and huge numbers are handled
   without unbounded recursion or precision loss.
 - A client created with `read_only=True` sends only GET and HEAD requests
   for data; anything else raises `ReadOnlyError` before it is sent.
