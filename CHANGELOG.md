@@ -77,8 +77,11 @@ All notable changes are recorded here. The format follows
   iteration goes (offset paging makes the database step over every earlier
   row), and rows created or deleted during the iteration no longer shift
   pages. Rows sharing a `creation` timestamp are handled exactly. A custom
-  `order_by`, or computed or child-table fields, keep offset paging. The
-  rows returned and their order are unchanged.
+  `order_by`, computed or child-table fields, or caller `or_filters` keep
+  offset paging. The rows returned and their order are unchanged. Each
+  page asks for the rows after the last `(creation, name)` pair, so rows
+  that share a timestamp (child rows, bulk imports) cost the same as any
+  other.
 
 ## [0.2.0] - 2026-11-26
 
