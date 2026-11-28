@@ -6,6 +6,15 @@ All notable changes are recorded here. The format follows
 
 ## [Unreleased]
 
+### Added
+
+- `read_only=True` on `Client` and `AsyncClient` refuses every request that
+  could change data (inserts, updates, deletes, submit, cancel, rename,
+  `set_value`, bulk writes, uploads and methods called by POST) with the new
+  `ReadOnlyError`, before anything is sent. Reads, `call(..., http_method="GET")`,
+  reports and downloads work, and password login is unaffected. The
+  `read_only` property reports the setting.
+
 ## [0.2.0] - 2026-11-26
 
 ### Removed

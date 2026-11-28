@@ -21,6 +21,7 @@ __all__ = [
     "PermissionDeniedError",
     "PreparedReportError",
     "RateLimitError",
+    "ReadOnlyError",
     "RequestTimeoutError",
     "ResponseTooLargeError",
     "ServerError",
@@ -61,6 +62,15 @@ class UnexpectedResponseError(FrappexError):
         """Store the HTTP status alongside the message."""
         super().__init__(message)
         self.status_code = status_code
+
+
+class ReadOnlyError(FrappexError):
+    """The client is read-only, so a request that could change data was not sent.
+
+    Raised on your machine, before anything reaches the site, when a client
+    created with ``read_only=True`` is asked to insert, update, delete,
+    submit, cancel, rename, set values, upload, or call a method by POST.
+    """
 
 
 class PreparedReportError(FrappexError):

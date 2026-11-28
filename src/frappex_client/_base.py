@@ -16,6 +16,7 @@ from ._config import RetryPolicy, normalise_base_url, validate_extra_headers
 from ._protocol import Request
 from .exceptions import (
     ConfigurationError,
+    ReadOnlyError,
     RequestTimeoutError,
     ResponseTooLargeError,
     TransportError,
@@ -23,6 +24,9 @@ from .exceptions import (
 )
 
 logger = logging.getLogger("frappex_client")
+
+# HTTP methods a read-only client may send.
+_READ_METHODS = frozenset({"GET", "HEAD"})
 
 DEFAULT_TIMEOUT = 30.0
 DEFAULT_MAX_RESPONSE_BYTES = 64 * 1024 * 1024
@@ -71,8 +75,11 @@ class ClientCore:
         allow_insecure_http: bool,
         max_response_bytes: int,
         headers: Mapping[str, str] | None,
+        read_only: bool = False,
     ) -> None:
         """Validate every setting before any connection is made."""
+        if not isinstance(read_only, bool):
+            raise ConfigurationError("read_only must be True or False.")
         if auth is not None and not isinstance(auth, TokenAuth | BearerAuth | PasswordAuth):
             raise ConfigurationError(
                 "auth must be a TokenAuth, BearerAuth or PasswordAuth, or None for guest access."
@@ -85,6 +92,7 @@ class ClientCore:
         self._auth = auth
         self._retry = retry if retry is not None else RetryPolicy()
         self._max_response_bytes = max_response_bytes
+        self._read_only = read_only
         self._logged_in = False
         self._http_arguments: dict[str, Any] = {
             "base_url": self._base_url,
@@ -105,6 +113,23 @@ class ClientCore:
     def base_url(self) -> str:
         """Address of the Frappe site this client talks to."""
         return self._base_url
+
+    @property
+    def read_only(self) -> bool:
+        """Whether the client refuses every request that could change data."""
+        return self._read_only
+
+    def _refuse_writes(self, request: Request) -> None:
+        """Stop a request that could change data when the client is read-only.
+
+        Only GET and HEAD pass: Frappe reads use them, while every write, and
+        any whitelisted method called by POST, uses another method.
+        """
+        if self._read_only and request.method not in _READ_METHODS:
+            raise ReadOnlyError(
+                f"This client is read-only, so {request.method} {request.path} was not "
+                "sent. Create the client without read_only=True to change data."
+            )
 
     def __repr__(self) -> str:
         """Describe the client without revealing credentials."""

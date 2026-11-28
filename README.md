@@ -208,6 +208,7 @@ except FrappexError:
 - API key, OAuth bearer token, username/password, or guest access
 - Automatic pagination with `iter_list`
 - Bulk insert and update in batches, with clear partial-failure reporting
+- A read-only mode that refuses writes before they leave your machine
 - Query, Script and Custom Reports as columns and rows keyed by field name
 - Print formats as PDFs, streamed to a file if you like
 - A typed exception for each kind of failure
@@ -347,6 +348,15 @@ out of `str(error)`.
 - Uploads are private by default.
 - Writes are never retried after a network error or 5xx. `GET` requests and HTTP 429 replies are.
 - Secrets are masked in `repr()` and never logged.
+- `read_only=True` makes a client refuse every request that could change data,
+  before it is sent: useful for reporting and export scripts pointed at a live
+  site. The API user's roles on the site remain the real limit.
+
+```python
+with Client("https://erp.example.com", auth, read_only=True) as erp:
+    rows = list(erp.iter_list("Sales Invoice"))  # reads work
+    erp.delete("Sales Invoice", rows[0]["name"])  # raises ReadOnlyError, nothing sent
+```
 
 See [SECURITY.md](SECURITY.md) to report a vulnerability.
 
