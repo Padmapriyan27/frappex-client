@@ -504,14 +504,20 @@ def _as_filter_list(filters: Filters | None) -> list[Any]:
 class ListPager:
     """Plans the requests of ``iter_list`` and filters their rows.
 
-    With the default order and plain field names it pages by *keyset*: each
-    request asks for rows whose ``creation`` is at or after the last one
-    returned, so the database seeks through the index instead of skipping
-    ``offset`` rows, and every page costs the same. Rows that share the last
-    ``creation`` value and were already returned are recognised by name and
-    dropped, so ties are handled exactly whatever the database's collation.
-    Any other order, or computed or child-table fields, falls back to offset
-    paging, which gives the same rows as before.
+    With the default order, plain field names and no ``or_filters`` it pages
+    by *keyset*: each request asks for the rows after the last one returned
+    in ``(creation, name)`` order, written as Frappe filters::
+
+        filters:    <caller's filters> AND creation >= X
+        or_filters: creation > X OR name > Y
+
+    which is ``creation > X OR (creation = X AND name > Y)``. The database
+    seeks instead of skipping ``offset`` rows, so every page costs the same
+    however deep the iteration goes and however many rows share a creation
+    timestamp, and names are compared by the database itself, so the result
+    always matches its sort order. Any other order, computed or child-table
+    fields, or caller ``or_filters`` (which cannot be combined with these)
+    use offset paging, which gives the same rows as before.
 
     The pager does no I/O: :meth:`next_operation` describes the next request
     and :meth:`accept` takes its rows, so both clients share it.
@@ -538,8 +544,10 @@ class ListPager:
         self._parent = parent
         self._page_size = page_size
         self.done = False
-        self._keyset = order_by is None and (
-            fields is None or all(f == "*" or _PLAIN_FIELD.fullmatch(f) for f in fields)
+        self._keyset = (
+            order_by is None
+            and not or_filters
+            and (fields is None or all(f == "*" or _PLAIN_FIELD.fullmatch(f) for f in fields))
         )
         if self._keyset:
             wanted = list(fields) if fields is not None else ["name"]
@@ -554,8 +562,7 @@ class ListPager:
             self._filters = filters
             self._order_by = order_by or STABLE_ORDER
         self._offset = 0
-        self._last_creation: Any = None
-        self._seen_at_last: set[str] = set()
+        self._after: tuple[Any, Any] | None = None
 
     @property
     def keyset(self) -> bool:
@@ -576,54 +583,43 @@ class ListPager:
                 parent=self._parent,
             )
         filters = list(self._filters or [])
-        if self._last_creation is not None:
-            filters.append(["creation", ">=", self._last_creation])
+        or_filters: list[Any] | None = None
+        if self._after is not None:
+            creation, name = self._after
+            filters.append(["creation", ">=", creation])
+            or_filters = [["creation", ">", creation], ["name", ">", name]]
         return get_list(
             self._doctype,
             fields=self._fields,
             filters=filters,
-            or_filters=self._or_filters,
+            or_filters=or_filters,
             order_by=self._order_by,
-            # Rows already returned at the boundary come back first; asking
-            # for that many more guarantees every page makes progress.
-            limit=self._page_size + len(self._seen_at_last),
+            limit=self._page_size,
             offset=0,
             parent=self._parent,
         )
 
     def accept(self, rows: list[Document]) -> list[Document]:
         """Take a page's rows and return the ones to hand to the caller."""
+        self.done = len(rows) < self._page_size
         if not self._keyset:
             self._offset += self._page_size
-            self.done = len(rows) < self._page_size
             return rows
-        limit = self._page_size + len(self._seen_at_last)
-        self.done = len(rows) < limit
-        fresh = []
-        for row in rows:
-            creation, name = row.get("creation"), row.get("name")
+        if rows:
+            last = rows[-1]
+            creation, name = last.get("creation"), last.get("name")
             if creation is None or name is None:
                 raise UnexpectedResponseError(
                     "A listed row has no name or creation, so paging cannot continue.",
                     status_code=200,
                 )
-            if creation == self._last_creation and str(name) in self._seen_at_last:
-                continue
-            fresh.append(row)
-        if fresh:
-            newest = fresh[-1]["creation"]
-            at_newest = {str(row["name"]) for row in fresh if row["creation"] == newest}
-            if newest == self._last_creation:
-                self._seen_at_last |= at_newest
-            else:
-                self._last_creation, self._seen_at_last = newest, at_newest
-        elif not self.done:
-            # A full page of rows already returned can only mean the site
-            # ignored the filter; stop rather than loop.
-            raise UnexpectedResponseError(
-                "The site returned the same rows again, so paging cannot continue.",
-                status_code=200,
-            )
+            if (creation, name) == self._after:
+                # The site ignored the keyset filters; stop rather than loop.
+                raise UnexpectedResponseError(
+                    "The site returned the same rows again, so paging cannot continue.",
+                    status_code=200,
+                )
+            self._after = (creation, name)
         if self._added:
-            fresh = [{k: v for k, v in row.items() if k not in self._added} for row in fresh]
-        return fresh
+            rows = [{k: v for k, v in row.items() if k not in self._added} for row in rows]
+        return rows

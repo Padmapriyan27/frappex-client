@@ -29,6 +29,8 @@ class Table:
             return bool(row[field] == value)
         if op == ">=":
             return bool(row[field] >= value)
+        if op == ">":
+            return bool(row[field] > value)
         if op == "in":
             return row[field] in value
         raise AssertionError(f"unexpected operator {op}")
@@ -39,7 +41,13 @@ class Table:
         assert params["order_by"] == "creation asc, name asc"
         filters = json.loads(params.get("filters", "[]"))
         assert isinstance(filters, list), "keyset paging sends list filters"
-        rows = [r for r in self.rows if all(self._match(r, c) for c in filters)]
+        or_filters = json.loads(params.get("or_filters", "[]"))
+        rows = [
+            r
+            for r in self.rows
+            if all(self._match(r, c) for c in filters)
+            and (not or_filters or any(self._match(r, c) for c in or_filters))
+        ]
         rows.sort(key=lambda r: (r["creation"], r["name"]))
         start = int(params["limit_start"])
         rows = rows[start : start + int(params["limit_page_length"])]
@@ -106,10 +114,22 @@ class TestKeysetPaging:
         table = Table(make_rows(list(range(10))))
         collect(table, kind, page_size=3)
         assert {r["limit_start"] for r in table.requests} == {"0"}
-        assert "creation" not in table.requests[0]["filters"]
-        assert ["creation", ">=", "2026-11-28 10:00:02.000000"] in json.loads(
-            table.requests[1]["filters"]
-        )
+        assert {r["limit_page_length"] for r in table.requests} == {"3"}
+        assert "or_filters" not in table.requests[0]
+        after = "2026-11-28 10:00:02.000000"
+        assert ["creation", ">=", after] in json.loads(table.requests[1]["filters"])
+        assert json.loads(table.requests[1]["or_filters"]) == [
+            ["creation", ">", after],
+            ["name", ">", "T-0002"],
+        ]
+
+    def test_a_huge_tie_group_costs_the_same_per_page(self, kind: str) -> None:
+        table = Table(make_rows([7] * 1000))
+        rows = collect(table, kind, page_size=100)
+        assert len({r["name"] for r in rows}) == 1000
+        # 10 full pages and one empty one; every request asks for 100 rows.
+        assert len(table.requests) == 11
+        assert {r["limit_page_length"] for r in table.requests} == {"100"}
 
     def test_rows_hold_only_the_fields_asked_for(self, kind: str) -> None:
         table = Table(make_rows([0, 1, 2]))
@@ -148,6 +168,7 @@ class TestOffsetFallback:
             {"order_by": "modified desc"},
             {"fields": ["count(name) as total"]},
             {"fields": ["items.qty"]},
+            {"or_filters": [["status", "=", "Open"], ["priority", "=", "High"]]},
         ],
     )
     def test_falls_back_to_offset_paging(self, options: dict[str, Any], kind: str) -> None:
@@ -165,28 +186,11 @@ class TestOffsetFallback:
 
 
 class TestPagingFailures:
-    def test_a_site_repeating_rows_ends_without_duplicates(self, kind: str) -> None:
+    def test_a_site_ignoring_the_keyset_stops_with_an_error(self, kind: str) -> None:
         page = [{"name": "A", "creation": "1"}, {"name": "B", "creation": "1"}]
-        calls: list[int] = []
-
-        def handle(request: httpx.Request) -> httpx.Response:
-            calls.append(1)
-            return httpx.Response(200, json={"data": page})
-
-        with Client(URL, transport=httpx.MockTransport(handle)) as client:
-            assert [r["name"] for r in client.iter_list("ToDo", page_size=2)] == ["A", "B"]
-        assert len(calls) == 2
-
-    def test_a_full_page_of_rows_already_returned_stops_with_an_error(self) -> None:
-        pages = iter(
-            [
-                [{"name": "A", "creation": "1"}],
-                [{"name": "A", "creation": "1"}, {"name": "A", "creation": "1"}],
-            ]
-        )
-        transport = httpx.MockTransport(lambda r: httpx.Response(200, json={"data": next(pages)}))
+        transport = httpx.MockTransport(lambda r: httpx.Response(200, json={"data": page}))
         with Client(URL, transport=transport) as client, pytest.raises(UnexpectedResponseError):
-            list(client.iter_list("ToDo", page_size=1))
+            list(client.iter_list("ToDo", page_size=2))
 
     def test_rows_without_creation_are_rejected(self) -> None:
         transport = httpx.MockTransport(
