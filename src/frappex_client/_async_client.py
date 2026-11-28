@@ -26,8 +26,10 @@ from ._base import (
 from ._config import RetryPolicy
 from ._protocol import RawResponse, Request, decode, file_path, parse_retry_after
 from .exceptions import (
+    AuthenticationError,
     BulkOperationError,
     FrappexError,
+    PermissionDeniedError,
     ReadOnlyError,
     TransportError,
     UnexpectedResponseError,
@@ -227,18 +229,56 @@ class AsyncClient(ClientCore):
                     return operation.parse(decode(response))
             await asyncio.sleep(delay)
 
-    async def _ensure_session(self) -> None:
-        """Log in once when the client uses password authentication."""
+    async def _ensure_session(self) -> int:
+        """Log in once when the client uses password authentication.
+
+        Returns:
+            The number of the session in use, to tell later whether another
+            caller has renewed it meanwhile.
+        """
         if self._needs_login:
             async with self._login_lock:
                 if self._needs_login and isinstance(self._auth, PasswordAuth):
                     await self._run(ops.login(self._auth.username, self._auth.password.reveal()))
                     self._logged_in = True
+                    self._session += 1
+        return self._session
+
+    async def _session_expired(self) -> bool:
+        """Whether a password session has ended on the site.
+
+        Frappe treats an expired session as a guest, so a request then fails
+        with 401 or 403 exactly like a missing permission. Asking who is
+        logged in tells the two apart. Other kinds of authentication never
+        expire here and cost no request.
+        """
+        if not (isinstance(self._auth, PasswordAuth) and self._logged_in):
+            return False
+        try:
+            user = await self._run(ops.get_logged_user())
+        except (AuthenticationError, PermissionDeniedError):
+            return True
+        return user == "Guest"
+
+    async def _renew_session(self, seen: int) -> None:
+        """Log in again, unless another caller already renewed session ``seen``."""
+        async with self._login_lock:
+            if self._session == seen:
+                self._logged_in = False
+        await self._ensure_session()
 
     async def _execute(self, operation: ops.Operation[T]) -> T:
         self._refuse_writes(operation.request)
-        await self._ensure_session()
-        return await self._run(operation)
+        session = await self._ensure_session()
+        try:
+            return await self._run(operation)
+        except (AuthenticationError, PermissionDeniedError):
+            # A request refused as unauthenticated never ran, so repeating it
+            # once on a fresh session is safe even for writes.
+            if self._session == session and not await self._session_expired():
+                raise
+            await self._renew_session(session)
+            return await self._run(operation)
 
     # -- site --------------------------------------------------------------
 
@@ -595,7 +635,23 @@ class AsyncClient(ClientCore):
     ) -> int:
         """Send ``request`` and write a successful body into ``target``."""
         self._refuse_writes(request)
-        await self._ensure_session()
+        session = await self._ensure_session()
+        try:
+            return await self._stream_once(request, target, max_bytes, content_type)
+        except (AuthenticationError, PermissionDeniedError):
+            if self._session == session and not await self._session_expired():
+                raise
+            await self._renew_session(session)
+            return await self._stream_once(request, target, max_bytes, content_type)
+
+    async def _stream_once(
+        self,
+        request: Request,
+        target: BinaryIO,
+        max_bytes: int | None,
+        content_type: str | None,
+    ) -> int:
+        """One attempt at a download; nothing is written unless it succeeds."""
 
         async def stream() -> int:
             try:
