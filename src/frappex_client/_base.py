@@ -141,6 +141,8 @@ class ClientCore:
             None if math.isinf(max_request_time) else float(max_request_time)
         )
         self._logged_in = False
+        # Counts password logins, so concurrent callers renew a session once.
+        self._session = 0
         self._http_arguments: dict[str, Any] = {
             "base_url": self._base_url,
             "headers": {

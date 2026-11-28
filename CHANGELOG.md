@@ -39,6 +39,17 @@ All notable changes are recorded here. The format follows
 - Debug log lines name the protocol each request used, for example
   `GET /api/method/ping -> 200 (HTTP/2)`.
 
+### Fixed
+
+- A `PasswordAuth` session that expires on the site is renewed: on a 401 or
+  403 the client asks the site who is logged in, and if the answer is a
+  guest it logs in again once and repeats the request once (safe for
+  writes, since a request refused as unauthenticated never ran). A genuine
+  permission error is raised unchanged, without a second login. Concurrent
+  callers renew the session only once. Before, long-running programs using
+  `PasswordAuth` failed with `AuthenticationError` for good once the session
+  timed out.
+
 ### Security
 
 - Downloads (`download`, `download_to`) accept only Frappe's file locations,
