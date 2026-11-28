@@ -75,7 +75,9 @@ def test_arbitrary_bytes_give_the_same_result(body: bytes) -> None:
     [
         b'{"message": "\\ud800"}',  # lone surrogate: orjson refuses, json accepts
         b'{"n": NaN, "m": Infinity}',  # not JSON, but json accepts it
-        b"[" * 5000 + b"]" * 5000,  # deeper than orjson allows
+        # Deeper than orjson allows, and so deep that json always refuses it
+        # too; at moderate depths json's own result depends on the call stack.
+        b"[" * 100_000 + b"]" * 100_000,
         b'{"n": 123456789012345678901234567890}',  # orjson would round it
         b"[18446744073709551616, -9223372036854775809]",  # just past 64 bits
         b'{"phone": "12345678901234567890123"}',  # long digits in a string
