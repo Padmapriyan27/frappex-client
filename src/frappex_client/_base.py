@@ -25,6 +25,10 @@ from .exceptions import (
 
 logger = logging.getLogger("frappex_client")
 
+# Requests a client keeps in flight at once unless told otherwise: enough to
+# overlap network waits, few enough not to swamp a site's worker processes.
+DEFAULT_MAX_CONCURRENCY = 10
+
 # HTTP methods a read-only client may send.
 _READ_METHODS = frozenset({"GET", "HEAD"})
 
@@ -76,8 +80,15 @@ class ClientCore:
         max_response_bytes: int,
         headers: Mapping[str, str] | None,
         read_only: bool = False,
+        max_concurrency: int | None = DEFAULT_MAX_CONCURRENCY,
     ) -> None:
         """Validate every setting before any connection is made."""
+        if max_concurrency is not None and (
+            isinstance(max_concurrency, bool)
+            or not isinstance(max_concurrency, int)
+            or max_concurrency < 1
+        ):
+            raise ConfigurationError("max_concurrency must be a positive integer or None.")
         if not isinstance(read_only, bool):
             raise ConfigurationError("read_only must be True or False.")
         if auth is not None and not isinstance(auth, TokenAuth | BearerAuth | PasswordAuth):
@@ -93,6 +104,7 @@ class ClientCore:
         self._retry = retry if retry is not None else RetryPolicy()
         self._max_response_bytes = max_response_bytes
         self._read_only = read_only
+        self._max_concurrency = max_concurrency
         self._logged_in = False
         self._http_arguments: dict[str, Any] = {
             "base_url": self._base_url,
@@ -108,11 +120,22 @@ class ClientCore:
             # the Authorization header or session cookie with it.
             "follow_redirects": False,
         }
+        if max_concurrency is not None:
+            # As many pooled connections as requests may be in flight, so a
+            # request that got a slot never waits for a connection.
+            self._http_arguments["limits"] = httpx.Limits(
+                max_connections=max_concurrency, max_keepalive_connections=max_concurrency
+            )
 
     @property
     def base_url(self) -> str:
         """Address of the Frappe site this client talks to."""
         return self._base_url
+
+    @property
+    def max_concurrency(self) -> int | None:
+        """Most requests this client sends at once; ``None`` means no limit."""
+        return self._max_concurrency
 
     @property
     def read_only(self) -> bool:

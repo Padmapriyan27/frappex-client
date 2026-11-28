@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import contextlib
 import io
 import os
 import ssl
@@ -17,6 +18,7 @@ from . import _operations as ops
 from ._auth import Auth, PasswordAuth
 from ._base import (
     CHUNK_SIZE,
+    DEFAULT_MAX_CONCURRENCY,
     DEFAULT_MAX_RESPONSE_BYTES,
     DEFAULT_TIMEOUT,
     ClientCore,
@@ -67,6 +69,9 @@ class Client(ClientCore):
         transport: An ``httpx`` transport to use instead of the default, for
             tests or custom networking. It then owns TLS, so ``verify`` no
             longer applies.
+        max_concurrency: Most requests in flight at once (10 by default).
+            Further requests wait for a free slot instead of failing, and the
+            connection pool is sized to match. ``None`` removes the limit.
         read_only: Refuse every request that could change data: inserts,
             updates, deletes, submit, cancel, rename, uploads and methods
             called by POST raise :class:`~frappex_client.ReadOnlyError`
@@ -90,6 +95,7 @@ class Client(ClientCore):
         max_response_bytes: int = DEFAULT_MAX_RESPONSE_BYTES,
         headers: Mapping[str, str] | None = None,
         read_only: bool = False,
+        max_concurrency: int | None = DEFAULT_MAX_CONCURRENCY,
         transport: httpx.BaseTransport | None = None,
     ) -> None:
         """Validate the settings and prepare the connection pool."""
@@ -103,8 +109,15 @@ class Client(ClientCore):
             max_response_bytes=max_response_bytes,
             headers=headers,
             read_only=read_only,
+            max_concurrency=max_concurrency,
         )
         self._http = httpx.Client(transport=transport, **self._http_arguments)
+        # Held only while a request is on the wire, never during a retry wait.
+        self._slots: threading.BoundedSemaphore | contextlib.nullcontext[None] = (
+            threading.BoundedSemaphore(max_concurrency)
+            if max_concurrency is not None
+            else contextlib.nullcontext()
+        )
         self._login_lock = threading.Lock()
 
     # -- lifecycle ---------------------------------------------------------
@@ -137,6 +150,10 @@ class Client(ClientCore):
     # -- transport ---------------------------------------------------------
 
     def _send(self, request: Request) -> RawResponse:
+        with self._slots:
+            return self._send_now(request)
+
+    def _send_now(self, request: Request) -> RawResponse:
         try:
             with self._http.stream(
                 request.method, request.path, **self._request_arguments(request)
@@ -538,30 +555,31 @@ class Client(ClientCore):
         """Send ``request`` and write a successful body into ``target``."""
         self._refuse_writes(request)
         self._ensure_session()
-        try:
-            with self._http.stream(
-                request.method, request.path, **self._request_arguments(request)
-            ) as response:
-                if response.status_code != 200:
-                    size = ResponseSize(self._max_response_bytes)
-                    body = bytearray()
+        with self._slots:
+            try:
+                with self._http.stream(
+                    request.method, request.path, **self._request_arguments(request)
+                ) as response:
+                    if response.status_code != 200:
+                        size = ResponseSize(self._max_response_bytes)
+                        body = bytearray()
+                        for chunk in response.iter_bytes(CHUNK_SIZE):
+                            size.add(len(chunk))
+                            body += chunk
+                        decode(RawResponse(response.status_code, response.headers, bytes(body)))
+                        raise UnexpectedResponseError(
+                            f"HTTP {response.status_code}: expected 200 for a download.",
+                            status_code=response.status_code,
+                        )
+                    self._check_content_type(response.headers, content_type)
+                    self._check_declared_length(response.headers, max_bytes)
+                    size = ResponseSize(max_bytes)
                     for chunk in response.iter_bytes(CHUNK_SIZE):
                         size.add(len(chunk))
-                        body += chunk
-                    decode(RawResponse(response.status_code, response.headers, bytes(body)))
-                    raise UnexpectedResponseError(
-                        f"HTTP {response.status_code}: expected 200 for a download.",
-                        status_code=response.status_code,
-                    )
-                self._check_content_type(response.headers, content_type)
-                self._check_declared_length(response.headers, max_bytes)
-                size = ResponseSize(max_bytes)
-                for chunk in response.iter_bytes(CHUNK_SIZE):
-                    size.add(len(chunk))
-                    target.write(chunk)
-                return size.total
-        except httpx.HTTPError as exc:
-            raise self._transport_error(request, exc) from exc
+                        target.write(chunk)
+                    return size.total
+            except httpx.HTTPError as exc:
+                raise self._transport_error(request, exc) from exc
 
     def download(self, file_url: str) -> bytes:
         """Return a file's contents, up to ``max_response_bytes``.

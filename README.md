@@ -205,6 +205,7 @@ except FrappexError:
 ## Features
 
 - Sync (`Client`) and async (`AsyncClient`) with identical methods
+- Bounded concurrency: at most `max_concurrency` requests in flight (10 by default), so parallel code cannot swamp a site
 - API key, OAuth bearer token, username/password, or guest access
 - Automatic pagination with `iter_list`, by keyset so deep pages stay fast
 - Bulk insert and update in batches, with clear partial-failure reporting

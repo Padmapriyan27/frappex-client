@@ -15,8 +15,18 @@ All notable changes are recorded here. The format follows
   reports and downloads work, and password login is unaffected. The
   `read_only` property reports the setting.
 
+- `max_concurrency` on `Client` and `AsyncClient` (10 by default) caps how
+  many requests are in flight at once, including downloads. Further
+  requests wait for a free slot instead of failing, a slot is not held
+  while waiting to retry, and the connection pool is sized to match.
+  `max_concurrency=None` removes the limit. The `max_concurrency` property
+  reports the setting.
+
 ### Changed
 
+- **At most 10 requests are in flight at once by default.** Before, an
+  `asyncio.gather` of hundreds of calls opened up to 100 connections to the
+  site. Pass `max_concurrency=None` for the old behaviour.
 - `iter_list` pages by keyset with its default order and plain field names:
   each request asks for rows created at or after the last one seen, instead
   of skipping `offset` rows. Every page costs the same however deep the
