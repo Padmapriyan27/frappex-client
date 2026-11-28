@@ -208,7 +208,7 @@ class ClientCore:
 
     @property
     def read_only(self) -> bool:
-        """Whether the client refuses every request that could change data."""
+        """Whether the client sends only GET and HEAD requests for data."""
         return self._read_only
 
     def _refuse_writes(self, request: Request) -> None:

@@ -37,7 +37,16 @@ Only the latest release receives security fixes.
   deflate compression. JSON nesting and huge numbers are handled
   without unbounded recursion or precision loss.
 - A client created with `read_only=True` sends only GET and HEAD requests
-  for data; anything else raises `ReadOnlyError` before it is sent.
+  for data; anything else raises `ReadOnlyError` before it is sent. Password
+  login and logout are still sent, and a whitelisted method called by GET
+  runs as its author wrote it, so it is a guard for your code rather than a
+  permission: the API user's roles on the site remain the real limit.
+
+## Your responsibilities
+
+- Keep the `httpx` logger at WARNING or above in production: at INFO it logs
+  full URLs, and query strings carry filters and method arguments.
+- Give each integration its own API user with only the roles it needs.
 
 ## Out of scope
 

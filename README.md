@@ -209,7 +209,7 @@ except FrappexError:
 - API key, OAuth bearer token, username/password, or guest access
 - Automatic pagination with `iter_list`, by keyset so deep pages stay fast
 - Bulk insert and update in batches, with clear partial-failure reporting
-- A read-only mode that refuses writes before they leave your machine
+- A read-only mode that refuses write requests before they leave your machine
 - Query, Script and Custom Reports as columns and rows keyed by field name
 - Print formats as PDFs, streamed to a file if you like
 - A typed exception for each kind of failure
@@ -375,14 +375,30 @@ out of `str(error)`.
 - Uploads are private by default.
 - Writes are never retried after a network error or 5xx. `GET` requests and HTTP 429 replies are.
 - Secrets are masked in `repr()` and never logged.
-- `read_only=True` makes a client refuse every request that could change data,
-  before it is sent: useful for reporting and export scripts pointed at a live
-  site. The API user's roles on the site remain the real limit.
+- `read_only=True` makes a client send only GET and HEAD requests for data:
+  inserts, updates, deletes, uploads and POST method calls raise
+  `ReadOnlyError` before anything is sent. Useful for reporting and export
+  scripts pointed at a live site. Password login and logout are still sent,
+  and a whitelisted method you call by GET runs as written, so one that writes
+  and accepts GET still writes. The API user's roles on the site remain the
+  real limit.
 
 ```python
 with Client("https://erp.example.com", auth, read_only=True) as erp:
     rows = list(erp.iter_list("Sales Invoice"))  # reads work
     erp.delete("Sales Invoice", rows[0]["name"])  # raises ReadOnlyError, nothing sent
+```
+
+**Logging.** frappex-client's own log lines (logger `frappex_client`, at
+DEBUG) name the method, path and status, never query strings, bodies or
+headers. httpx logs every full URL, query string included, at INFO; filters
+and method arguments travel in query strings and can contain personal data,
+so keep that logger at WARNING in production:
+
+```python
+import logging
+
+logging.getLogger("httpx").setLevel(logging.WARNING)
 ```
 
 See [SECURITY.md](SECURITY.md) to report a vulnerability.
@@ -401,6 +417,18 @@ client = Client(
 ```
 
 `RetryPolicy(max_attempts=1)` turns retries off.
+
+`timeout` applies to each network read. `max_request_time` (300 s by
+default) bounds a whole request attempt, so a site that sends a reply very
+slowly cannot hold a worker, and `max_concurrency` (10 by default) caps how
+many requests are in flight at once.
+
+**Large data in async code.** Decoding a reply takes CPU time during which
+the event loop cannot run other tasks: about 5 ms per MiB of JSON. Python's
+JSON decoders hold the interpreter lock while they work, so moving decoding
+to a thread does not avoid this. Read large tables with `iter_list` (100 rows,
+about 150 KiB, per request by default) instead of one huge `get_list`, and
+lower `page_size` if latency matters more than throughput.
 
 ## Development
 
